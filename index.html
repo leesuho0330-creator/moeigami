@@ -2643,6 +2643,9 @@ function unlock(id){
   state.achievements[id] = Date.now();
   toast("🏅 업적 달성 · " + a.n);
   save(true);
+  // 앱인토스 핵심 지표(전환)용 이벤트 — 토스 환경에서만 실제 전송
+  trackEvent("achievement_unlocked", { id: id });
+  if (id === "first") trackEvent("first_trade_filled", { id: id });
   if (activeTab === "rank") renderRank();
 }
 function checkLevel(){
@@ -3921,22 +3924,40 @@ function adRewardAmount(){
 function adRemaining(){ const a = adState(); return Math.max(0, AD_DAILY - a.count); }
 function adCooldownLeft(){ const a = adState(); return Math.max(0, AD_COOLDOWN - (Date.now() - a.lastAt)); }
 
+/* ---------------- 분석 이벤트 (앱인토스 핵심 지표 연동) ---------------- */
+// 토스 SDK가 없는 환경(로컬 미리보기·GitHub Pages)에서는 조용히 무시됩니다.
+function trackEvent(name, params){
+  try{
+    const a = window.moeigamiAnalytics;
+    if (a && typeof a.log === "function") a.log(name, params || {});
+  }catch(e){ /* noop */ }
+}
+
 /*
   광고 지급 훅.
-  지금은 5초 카운트다운 모달로 시청을 흉내내고, 끝나면 onReward() 를 호출합니다.
-  앱인토스에 올릴 때는 아래 주석 위치에서 실제 보상형 광고 SDK 호출로 바꾸면 됩니다.
-  예) AppsInToss.RewardedAd.loadAd({ adGroupId: "..." }).then(ad => ad.showAd())
-      .then(() => onReward()) ...
+  · 토스 앱(앱인토스 SDK) 안: 실제 보상형 광고를 띄우고, userEarnedReward 가 온 경우에만 onReward() 를 부릅니다.
+    (dismissed 만으로는 절대 지급하지 않습니다. 광고 로드/재생 실패 시엔 보상 없이 안내만 합니다.)
+  · 일반 브라우저(로컬 미리보기·GitHub Pages): 5초 체험 모달로 흐름만 확인합니다.
 */
 function requestRewardedAd(onReward){
+  const ads = window.moeigamiAds;
+  if (ads && typeof ads.isSupported === "function" && ads.isSupported()){
+    showAdLoadingSheet();
+    ads.requestRewardedAd({
+      onReward: () => { closeSheet(); onReward(); },
+      onFail: (msg) => { closeSheet(); toast("📺 " + (msg || "광고를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.")); },
+      onEvent: (e) => { if (e && e.type === "show") closeSheet(); }
+    });
+    return;
+  }
+  // ↓ 미리보기용 체험 모드 (토스 앱 밖에서만)
   const sheet = $("#sheet");
   sheet.innerHTML =
-    '<h3>📺 광고 시청 중…</h3>'
-    + '<p>광고가 끝나면 보상이 지급돼요. 이 화면에서는 건너뛸 수 없어요.</p>'
+    '<h3>📺 체험용 광고 (미리보기)</h3>'
+    + '<p>토스 앱 밖 미리보기예요. 실제 앱에서는 진짜 보상형 광고가 재생돼요.</p>'
     + '<div class="adbox"><i id="adBar"></i></div>'
     + '<div class="adtimer" id="adTimer">5초 남음</div>';
   $("#scrim").classList.add("show");
-  // ↑ 실제 SDK 연동 시: rewarded ad load/show 호출 후 성공 콜백에서 finish() 를 부르세요.
   let left = 5;
   const bar = $("#adBar"), tm = $("#adTimer");
   setTimeout(() => { if (bar) bar.style.width = "100%"; }, 30);
@@ -3949,6 +3970,16 @@ function requestRewardedAd(onReward){
       onReward();
     }
   }, 1000);
+}
+function showAdLoadingSheet(){
+  const sheet = $("#sheet");
+  sheet.innerHTML =
+    '<h3>📺 광고 준비 중…</h3>'
+    + '<p>잠시만 기다려 주세요. 광고가 열리면 끝까지 보셔야 구조자금이 지급돼요.</p>'
+    + '<div class="adbox"><i id="adBar"></i></div>';
+  $("#scrim").classList.add("show");
+  const bar = $("#adBar");
+  setTimeout(() => { if (bar) bar.style.width = "100%"; }, 30);
 }
 function watchAdForCash(){
   if (state.challenge){ toast("챌린지 중엔 광고 보상을 받을 수 없어요"); return; }
