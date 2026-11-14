@@ -422,6 +422,37 @@
   .rumor .rwait.exp b{color:#FFC078;}
   .rumor.done{background:linear-gradient(150deg,#22292F,#14191F);}
   .rumor .rresult{margin-top:11px; display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:800;}
+  /* --- 속보: 오른다/내린다 + 비율 투자 --- */
+  .rumor .rdirs{display:flex; gap:7px; margin-top:11px;}
+  .rumor .rdirs button{
+    flex:1; padding:13px 0; border-radius:12px; font-size:13px; font-weight:900;
+    background:rgba(255,255,255,.08); color:#EAF1F5; border:1px solid rgba(255,255,255,.15);
+  }
+  .rumor .rdirs button.up{background:linear-gradient(160deg,rgba(228,69,58,.34),rgba(228,69,58,.14)); border-color:rgba(228,69,58,.55); color:#FFB0A6;}
+  .rumor .rdirs button.dn{background:linear-gradient(160deg,rgba(58,111,224,.34),rgba(58,111,224,.14)); border-color:rgba(58,111,224,.55); color:#B0C6FF;}
+  .rumor .rpick{margin-top:10px; background:rgba(255,255,255,.05); border-radius:13px; padding:11px 12px 12px;}
+  .rumor .rpick .ph{font-size:11.5px; font-weight:800; color:#C9D6DE;}
+  .rumor .rpick .ph b{color:#fff;}
+  .rumor .rpcts{display:flex; gap:6px; margin-top:9px;}
+  .rumor .rpcts button{
+    flex:1; padding:9px 0 8px; border-radius:11px; border:1px solid rgba(140,227,190,.42);
+    background:rgba(44,201,138,.17); color:#E4FBF0;
+  }
+  .rumor .rpcts button b{display:block; font-size:13px; font-weight:900;}
+  .rumor .rpcts button span{display:block; font-size:9.5px; font-weight:700; color:#9FE1C4; margin-top:2px;}
+  .rumor .rnote{margin-top:8px; font-size:10.5px; color:#8FA2B0; font-weight:700;}
+  .rumor .rnone{
+    width:100%; margin-top:8px; padding:9px 0; border-radius:11px; font-size:11px; font-weight:800;
+    background:transparent; color:#A9B8C4; border:1px solid rgba(255,255,255,.16);
+  }
+  .rumor .rsettle{
+    margin-top:9px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+    font-size:12px; font-weight:800; color:#C9D6DE;
+    background:rgba(255,255,255,.07); border-radius:11px; padding:9px 11px;
+  }
+  .rumor .rsettle b{font-size:12.5px; font-weight:900;}
+  .rumor .rsettle.up b{color:#FF9C93;}
+  .rumor .rsettle.down b{color:#9DBBFF;}
 
   /* --- 레버리지 · 숏 주문 --- */
   .posmini{margin:10px 16px 0; display:flex; flex-direction:column; gap:6px;}
@@ -1361,9 +1392,15 @@ function load(){
     /* --- 게임 요소 --- */
     if (Array.isArray(p.positions)) {
       state.positions = p.positions.filter(x => x && BY_CODE[x.code] && x.qty > 0 && x.margin > 0)
-        .map(x => ({ id: x.id || "p" + Math.random().toString(36).slice(2, 8), code: x.code, side: x.side === "short" ? "short" : "long", lev: Number(x.lev) || 1, qty: Math.floor(x.qty), entry: Number(x.entry) || 0, margin: Math.round(x.margin), openedAt: x.openedAt || Date.now() }));
+        .map(x => ({ id: x.id || "p" + Math.random().toString(36).slice(2, 8), code: x.code, side: x.side === "short" ? "short" : "long", lev: Number(x.lev) || 1, qty: Math.floor(x.qty), entry: Number(x.entry) || 0, margin: Math.round(x.margin), openedAt: x.openedAt || Date.now(), rumor: x.rumor || null }));
     }
-    if (Array.isArray(p.rumors)) state.rumors = p.rumors.slice(0, 6).map(r => ({ ...r, expiresAt: Number(r.expiresAt) || (Number(r.at) || Date.now()) + RUMOR_TTL }));
+    if (Array.isArray(p.rumors)) state.rumors = p.rumors.slice(0, 6).map(r => {
+      const x = { ...r, expiresAt: Number(r.expiresAt) || (Number(r.at) || Date.now()) + RUMOR_TTL };
+      /* 예전 저장값(사실/낚시) → 오른다/내린다로 옮긴다 */
+      if (x.choice === "real") x.choice = r.dir > 0 ? "up" : "down";
+      else if (x.choice === "fake") x.choice = r.dir > 0 ? "down" : "up";
+      return x;
+    });
     if (p.achievements && typeof p.achievements === "object") state.achievements = p.achievements;
     if (p.flex && typeof p.flex === "object") {
       Object.keys(p.flex).forEach(id => { if (ITEM_BY_ID[id] && p.flex[id] > 0) state.flex[id] = Math.floor(p.flex[id]); });
@@ -1430,6 +1467,40 @@ const NEWS_GAP = [120000, 300000];
 function nextGap(){ return NEWS_GAP[0] + Math.random() * (NEWS_GAP[1] - NEWS_GAP[0]); }
 function scheduleNews(base){ state.nextNewsAt = (base || Date.now()) + nextGap(); }
 function scheduleRumor(base){ state.nextRumorAt = (base || Date.now()) + nextGap(); }
+
+/* ---------------- 변동성 엔진 (2026-11-15 대폭 상향) ----------------
+   기존엔 틱당 0.16~0.6%로 잔잔했지만, 이제 기본 변동폭을 6배 넘게 키우고
+   종목별 '추세(모멘텀)'와 '급변 구간'을 더해 차트가 실제처럼 크게 출렁이게 한다. */
+const VOL_BOOST = 2.9;              // 기본 변동폭 배율 (기존 대비)
+const VOL_SPIKE_CHANCE = 0.02;      // 한 틱짜리 랜덤 스파이크 확률
+const VOL_MAX_TICK = 0.1;           // 한 틱 최대 변동(±10%) — 차트가 깨지지 않는 선
+const VOL_REGIME = { chance: 0.06, minTicks: 3, maxTicks: 9, mult: [1.8, 3.0] };
+const volState = {};                // code -> { mo: 추세, regUntil, regMult }
+function volOf(s){
+  let v = volState[s.code];
+  if (!v) v = volState[s.code] = { mo: 0, regUntil: 0, regMult: 1 };
+  return v;
+}
+function baseVolOf(s){
+  const cap = s.hot ? 0.0135 : 0.0085;  // 급등주는 더 크게, 일반주도 틱당 최대 0.85%
+  return Math.min(s.vol * VOL_BOOST, cap);
+}
+function tickShock(s, t){
+  const v = volOf(s);
+  /* 급변 구간: 가끔 3~9틱 동안 변동폭이 2~4배로 터진다 */
+  if (t >= v.regUntil && Math.random() < VOL_REGIME.chance){
+    v.regUntil = t + (VOL_REGIME.minTicks + Math.random() * (VOL_REGIME.maxTicks - VOL_REGIME.minTicks)) * TICK_MS;
+    v.regMult = VOL_REGIME.mult[0] + Math.random() * (VOL_REGIME.mult[1] - VOL_REGIME.mult[0]);
+  }
+  const regMult = t < v.regUntil ? v.regMult : 1;
+  const bv = baseVolOf(s);
+  let shock = gauss() * bv * regMult;
+  if (Math.random() < VOL_SPIKE_CHANCE) shock *= 2.4 + Math.random() * 2.4;      // 순간 급등/급락
+  if (s.hot && Math.random() < 0.05) shock *= (Math.random() < 0.6 ? 2.8 : 2.3); // 급등주 랠리
+  /* 추세(모멘텀): 최근 흐름이 몇 틱 이어져 차트에 파도가 생긴다 */
+  v.mo = clamp(v.mo * 0.84 + shock * 0.5, -bv * 3.2, bv * 3.2);
+  return clamp(shock + v.mo * 0.30, -VOL_MAX_TICK, VOL_MAX_TICK);
+}
 function seedTicks(code, price){
   const now = Date.now();
   const s = BY_CODE[code];
@@ -1437,8 +1508,8 @@ function seedTicks(code, price){
   let p = price;
   for (let i = 0; i < 420; i++){
     arr.push({t: now - i * TICK_MS, p: snap(p)});
-    p = p / (1 + gauss() * s.vol * 0.75);
-    p = clamp(p, s.base * 0.55, s.base * 1.9);
+    p = p / (1 + gauss() * baseVolOf(s) * 0.9);
+    p = clamp(p, s.base * 0.4, s.base * 2.5);
   }
   arr.reverse();
   return arr;
@@ -1471,17 +1542,15 @@ function stepMarket(t, ui){
     const prev = state.prices[s.code];
     if (typeof prev !== "number") return;
     prevPx[s.code] = prev;
-    const drift = ((s.base - prev) / s.base) * 0.035 + (ch ? (ch.kind === "crash" ? -0.0014 : 0.0009) : 0);
+    const drift = ((s.base - prev) / s.base) * 0.026 + (ch ? (ch.kind === "crash" ? -0.0020 : 0.0013) : 0);
     /* 상장 직후 22초는 상장 버프(높은 변동성) */
-    const ipoBuff = s.dyn ? ((t - (s.listedAt || 0)) < 22000 ? 3.0 : 1) : 1;
-    let shock = gauss() * s.vol * (ch ? (ch.kind === "crash" ? 1.9 : 1.3) : 1) * ipoBuff;
-    if (Math.random() < 0.015) shock *= 3.2;
-    /* 🔥 급등주는 가끔 방향성 랠리/급락이 터진다 */
-    if (s.hot && Math.random() < 0.035) shock *= (Math.random() < 0.62 ? 4.2 : 3.4);
+    const ipoBuff = s.dyn ? ((t - (s.listedAt || 0)) < 22000 ? 2.2 : 1) : 1;
+    const chMult = ch ? (ch.kind === "crash" ? 1.7 : 1.25) : 1;
+    let shock = tickShock(s, t) * chMult * ipoBuff;
     let next = snap(prev * (1 + drift + shock));
-    const loB = s.hot ? 0.35 : 0.5, hiB = s.hot ? 2.6 : 1.85;
+    const loB = s.hot ? 0.3 : 0.45, hiB = s.hot ? 2.8 : 2.2;
     next = clamp(next, Math.max(kTick(prev), Math.round(s.base * loB)), Math.round(s.base * hiB));
-    if (next === prev) next = snap(prev * (1 + (Math.random() < .5 ? -1 : 1) * s.vol));
+    if (next === prev) next = snap(prev * (1 + (Math.random() < .5 ? -1 : 1) * baseVolOf(s) * 0.8));
     state.prices[s.code] = next;
     s.volume = (s.volume || Math.floor(Math.random() * 900000) + 200000) + Math.floor(Math.random() * 12000) + 800;
     const arr = ticks[s.code];
@@ -1498,14 +1567,14 @@ function stepMarket(t, ui){
     state.nextIpoAt = t + nextIpoGap();
   }
 
-  // 뉴스 이벤트 (12~55초 랜덤 간격)
+  // 뉴스 이벤트 (2~5분 랜덤 간격)
   if (!state.nextNewsAt) scheduleNews(t);
   if (t >= state.nextNewsAt){
     const s = STOCKS[Math.floor(Math.random() * STOCKS.length)];
     const act = NEWS_ACTS[Math.floor(Math.random() * NEWS_ACTS.length)];
-    const move = (0.006 + Math.random() * 0.024) * act.dir;
+    const move = (0.012 + Math.random() * 0.048) * act.dir;
     const before = state.prices[s.code];
-    state.prices[s.code] = snap(clamp(before * (1 + move), s.base * 0.5, s.base * 1.85));
+    state.prices[s.code] = snap(clamp(before * (1 + move), s.base * 0.3, s.base * 3.2));
     if (ticks[s.code] && ticks[s.code].length) ticks[s.code][ticks[s.code].length - 1].p = state.prices[s.code];
     state.news.unshift({ t, code: s.code, txt: act.txt, pct: move * 100 });
     if (state.news.length > 8) state.news.length = 8;
@@ -1527,8 +1596,9 @@ function stepMarket(t, ui){
   }
   if (!state.nextRumorAt) scheduleRumor(t);
   if (t >= state.nextRumorAt){
-    if (activeRumors().length < 2){ spawnRumor(false); scheduleRumor(t); }
-    else state.nextRumorAt = t + 10000;
+    if (activeRumors().length >= 2) state.nextRumorAt = t + 10000;
+    else if (spawnRumor(false)) scheduleRumor(t);            // 정상 발생 → 2~5분 뒤
+    else state.nextRumorAt = t + 4000 + Math.random() * 5000;  // 손가락이 바쁘면 잠시 미룸
   }
 
   /* --- AI 라이벌 수익률 흔들기 --- */
@@ -1674,7 +1744,7 @@ function toast(msg){
   wrap.appendChild(el);
   setTimeout(() => { el.style.transition = "opacity .25s"; el.style.opacity = "0"; }, 2000);
   setTimeout(() => el.remove(), 2300);
-  while (wrap.children.length > 3) wrap.firstChild.remove();
+  while (wrap.children.length > 2) wrap.firstChild.remove();
 }
 
 /* ---------------- 차트 유틸 ---------------- */
@@ -2709,6 +2779,19 @@ const RUMORS = [
 ];
 let rumorCooldown = 0;
 const RUMOR_TTL = 15000;   // 미선택 속보는 15초 뒤 자동 소멸
+const RUMOR_QUIET = 9000;  // 버튼을 누른 직후 이 시간 동안은 자동 속보를 띄우지 않는다
+const RUMOR_RESOLVE = [9000, 14000];   // 방향을 고른 뒤 결과까지 (투자 비율 고를 시간)
+const RUMOR_STAKES = [10, 25, 50, 100]; // 보유 현금 대비 바로 투자할 비율 후보(%)
+let lastInputAt = Date.now();
+function noteInput(){ lastInputAt = Date.now(); }
+function inputBusy(){
+  if (Date.now() - lastInputAt < RUMOR_QUIET) return true;
+  const scrim = $("#scrim");
+  if (scrim && scrim.classList.contains("show")) return true;    // 주문 시트·모달이 열려 있음
+  const ae = document.activeElement;
+  if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return true;
+  return false;
+}
 
 function activeRumors(){ return (state.rumors || []).filter(r => !r.done); }
 function updateRumorCountdown(){
@@ -2720,48 +2803,109 @@ function updateRumorCountdown(){
     const txt = left + "초";
     if (el.textContent !== txt) el.textContent = txt;
   });
+  $$("[data-rres]").forEach(el => {
+    const r = list.find(x => x.id === el.getAttribute("data-rres"));
+    if (!r) return;
+    const left = Math.max(0, Math.ceil(((r.resolvesAt || 0) - Date.now()) / 1000));
+    const txt = left + "초";
+    if (el.textContent !== txt) el.textContent = txt;
+  });
 }
 function spawnRumor(manual){
   if (!state.rumors) state.rumors = [];
-  if (activeRumors().length >= 2) { if (manual) toast("이미 확인할 속보가 있어요"); return; }
   const now = Date.now();
-  if (manual && now < rumorCooldown) { toast("조금 뒤에 다시 엿들어 볼 수 있어요"); return; }
+  if (manual && now < rumorCooldown) { toast("조금 뒤에 다시 엿들어 볼 수 있어요"); return null; }
+  /* 자동 속보는 사용자가 버튼을 누른 직후나 시트를 열어 조작 중일 땐 절대 겹쳐 뜨지 않는다 */
+  if (!manual && inputBusy()) return null;
+  if (activeRumors().length >= 2) { if (manual) toast("이미 확인할 속보가 있어요"); return null; }
   const busy = activeRumors().map(r => r.title);
   const pool = RUMORS.filter(t => !busy.includes(t.title));
   const tpl = pool[Math.floor(Math.random() * pool.length)];
-  state.rumors.unshift({
+  const r = {
     id: "r" + now + Math.floor(Math.random() * 999),
     code: tpl.code, dir: tpl.dir, title: tpl.title, src: tpl.src,
-    at: now, choice: null, checked: false, resolvesAt: 0, done: false, real: null, correct: null,
+    at: now, choice: null, pick: null, stake: null, settle: null,
+    checked: false, resolvesAt: 0, done: false, real: null, correct: null,
     expiresAt: now + RUMOR_TTL
-  });
+  };
+  state.rumors.unshift(r);
   if (state.rumors.length > 6) state.rumors.length = 6;
   rumorCooldown = now + 20000;
   renderRumors();
   save(true);
-  if (manual) toast("👂 새 소문이 들어왔어요");
-  else toast("🔔 긴급 속보 · " + tpl.title);
+  if (manual) return r;   // 직접 엿들었을 때는 배너 없이 목록에만 카드를 붙인다
+  toast("🔔 긴급 속보 · " + tpl.title);
+  return r;
 }
-function chooseRumor(id, choice){
+/* 오른다 / 내린다 — 방향을 고르면 결과 전까지 현금의 몇 %를 실을지 고를 수 있다 */
+function chooseRumor(id, dir){
   const r = (state.rumors || []).find(x => x.id === id);
   if (!r || r.done || r.choice) return;
-  r.choice = choice;                      // "real" | "fake"
+  r.choice = dir === "down" ? "down" : "up";
+  r.pick = r.choice;
   r.real = Math.random() < 0.5;
-  r.resolvesAt = Date.now() + (6000 + Math.random() * 5000);
+  r.resolvesAt = Date.now() + RUMOR_RESOLVE[0] + Math.random() * (RUMOR_RESOLVE[1] - RUMOR_RESOLVE[0]);
+  noteInput();
   renderRumors(); save(true);
-  toast(choice === "real" ? "✅ 사실에 걸어봤어요 · 결과 대기" : "🎣 낚시에 걸어봤어요 · 결과 대기");
 }
 function factCheckRumor(id){
   const r = (state.rumors || []).find(x => x.id === id);
   if (!r || r.done || r.checked) return;
   r.checked = true;
+  noteInput();
   const honest = Math.random() < 0.75;
   const real = honest ? r.real === null ? Math.random() < 0.5 : r.real : Math.random() < 0.5;
-  r.hint = real
-    ? "취재진 2명이 교차 확인 → 가능성 높음"
-    : "출처가 익명 하나뿐 → 가능성 낮음";
+  const up = real ? r.dir > 0 : r.dir < 0;
+  r.hint = up
+    ? "취재진 2명이 교차 확인 → 오를 쪽 가능성 높음"
+    : "출처가 익명 하나뿐 → 내릴 쪽 가능성 높음";
   toast("🔍 팩트체크 · " + r.hint);
   renderRumors(); save(true);
+}
+/* 보유 현금의 pct%로 지금 가격에 1배 롱(오른다)/숏(내린다) 진입 */
+function rumorStakePreview(r, pct){
+  const price = state.prices[r.code] || 1;
+  const budget = Math.floor(state.cash * pct / 100);
+  const qty = Math.max(0, Math.floor(budget / (price * (1 + FEE_RATE.buy))));
+  const notional = qty * price;
+  const fee = feeAmount(notional, "buy");
+  return { pct, budget, qty, notional, fee };
+}
+function betRumor(id, pct){
+  const r = (state.rumors || []).find(x => x.id === id);
+  if (!r || r.done || r.stake || !r.choice) return;
+  if (!state.positions) state.positions = [];
+  const s = BY_CODE[r.code];
+  const price = state.prices[r.code];
+  const pv = rumorStakePreview(r, pct);
+  if (pv.qty < 1 || pv.notional + pv.fee > state.cash){ toast("예수금이 부족해 투자할 수 없어요"); return; }
+  const side = r.choice === "up" ? "long" : "short";
+  const pos = {
+    id: "p" + Date.now() + Math.floor(Math.random() * 999),
+    code: r.code, side, lev: 1, qty: pv.qty, entry: price, margin: pv.notional,
+    openedAt: Date.now(), rumor: r.id
+  };
+  state.cash -= pv.notional + pv.fee;
+  state.positions.push(pos);
+  pushTrade({ code: r.code, side, qty: pv.qty, price, total: pv.notional, lev: 1, fee: pv.fee, kind: "open" });
+  r.stake = { pct, qty: pv.qty, side, entry: price, margin: pv.notional, fee: pv.fee, posId: pos.id };
+  noteInput();
+  unlock("first");
+  renderRumors(); renderInvest(); updateHomeLive(); save(true);
+  toast((side === "long" ? "📈 오른다 " : "📉 내린다 ") + pct + "% 투자 · " + s.name + " " + fmt(pv.qty) + "주 · " + shortWon(pv.notional) + "원");
+}
+/* 속보 결과가 나오면 걸어둔 투자금은 자동 정산(1배 롱은 매도, 숏은 청산) */
+function settleRumorStake(r){
+  if (!r.stake || r.settle) return;
+  const st = r.stake;
+  const cur = state.prices[r.code];
+  const i = (state.positions || []).findIndex(p => p.id === st.posId);
+  if (i < 0){ r.settle = { pnl: null, exit: cur, ret: null }; return; }   // 이미 직접 청산한 경우
+  const p = state.positions[i];
+  const dir = p.side === "long" ? 1 : -1;
+  const pnl = clamp(p.margin * ((cur - p.entry) / p.entry) * dir, -p.margin, p.margin * 30);
+  closePosition(p.id, "rumor");
+  r.settle = { pnl: Math.round(pnl), exit: cur, ret: (pnl / p.margin) * 100 };
 }
 function resolveRumor(r){
   r.done = true;
@@ -2773,8 +2917,9 @@ function resolveRumor(r){
   state.news.unshift({ t: Date.now(), code: r.code, txt: (r.real ? "속보 사실로 확인 · " : "찌라시였던 것으로 확인 · ") + s.name, pct: mag * 100 });
   if (state.news.length > 8) state.news.length = 8;
   r.movePct = mag * 100;
+  settleRumorStake(r);
   if (r.choice){
-    r.correct = (r.choice === "real") === r.real;
+    r.correct = rumorCorrect(r);
     if (r.correct){
       state.stats.rumorHits = (state.stats.rumorHits || 0) + 1;
       unlock("rumor");
@@ -2786,11 +2931,19 @@ function resolveRumor(r){
     toast("📢 " + s.name + " " + pctStr(mag * 100) + " · " + (r.real ? "찌라시가 사실로" : "찌라시로 판명"));
   }
   if (!SILENT){
-    renderRumors(); renderNews(); updateHomeLive();
+    renderRumors(); renderNews(); updateHomeLive(); renderPositions();
     if (detailCode) updateDetailLive();
     if (activeTab === "invest") renderInvest();
   }
   save(!SILENT);
+}
+function rumorCorrect(r){
+  if (!r.choice) return null;
+  if (r.choice === "real") return r.real === true;
+  if (r.choice === "fake") return r.real === false;
+  const move = Number(r.movePct) || 0;
+  if (!move) return null;
+  return r.choice === "up" ? move > 0 : move < 0;
 }
 
 /* ---------------- 포지션 (레버리지 · 숏) ---------------- */
@@ -3145,7 +3298,7 @@ function renderRumors(){
 function rumorCard(r){
   const s = BY_CODE[r.code];
   if (!s) return "";
-  const left = r.choice ? Math.max(0, Math.ceil((r.resolvesAt - Date.now()) / 1000)) : 0;
+  const left = r.choice ? Math.max(0, Math.ceil(((r.resolvesAt || 0) - Date.now()) / 1000)) : 0;
   let body = "";
   if (r.done){
     const up = (r.movePct || 0) >= 0;
@@ -3153,24 +3306,60 @@ function rumorCard(r){
       + '<span style="color:#9FB0BC;font-weight:700">' + (r.real ? "찌라시가 사실로 확인" : "낚시였던 것으로 확인") + '</span>'
       + (r.correct === true ? '<span class="pill brand" style="margin-left:auto">적중</span>' : r.correct === false ? '<span class="pill" style="margin-left:auto">실패</span>' : '')
       + '</div>';
-    return '<div class="rumor done"><div class="rhead">' + (r.real ? "💥 진짜였다" : "🪤 낚시였다") + ' · ' + s.name + '</div>'
+    if (r.stake && r.settle){
+      const st = r.stake, se = r.settle;
+      if (se.pnl == null){
+        body += '<div class="rsettle">📈 ' + st.pct + '% 베팅 · 직접 청산해서 자동정산은 건너뛰었어요</div>';
+      } else {
+        body += '<div class="rsettle ' + (se.pnl >= 0 ? "up" : "down") + '">'
+          + (st.side === "long" ? "📈 오른다 " : "📉 내린다 ") + st.pct + '% 베팅 · '
+          + '<b>' + (se.pnl >= 0 ? "+" : "") + shortWon(se.pnl) + '원 (' + pctStr(se.ret) + ')</b></div>';
+      }
+    }
+    return '<div class="rumor done"><div class="rhead">🔔 속보 결과 · ' + s.name + '</div>'
       + '<div class="rtitle" style="font-size:13.5px">' + r.title + '</div>' + body + '</div>';
   }
+  const meta = '<div class="rmeta">' + s.name + ' · 출처 ' + r.src
+    + (r.revealed ? ' · <span style="color:#8CE3BE">정보상 감정 완료</span>' : r.checked ? ' · <span style="color:#8CE3BE">팩트체크 완료</span>' : '') + '</div>'
+    + (r.checked && r.hint ? '<div class="rmeta" style="color:' + (r.revealed ? (r.verdict === "악재 우세" ? '#9DBBFF' : '#8CE3BE') : '#C9D6DE') + '">' + (r.revealed ? '🕵️ ' : '🔍 ') + r.hint + '</div>' : '');
+
   if (r.choice){
-    body = '<div class="rwait"><span>' + (r.choice === "real" ? "✅ 사실에 베팅" : "🎣 낚시에 베팅") + ' · 결과 대기</span><b>' + left + '초</b></div>';
-  } else {
-    body = '<div class="rmeta">' + s.name + ' · 출처 ' + r.src + (r.revealed ? ' · <span style="color:#8CE3BE">정보상 감정 완료</span>' : r.checked ? ' · <span style="color:#8CE3BE">팩트체크 완료</span>' : '') + '</div>'
-      + (r.checked && r.hint ? '<div class="rmeta" style="color:' + (r.revealed ? (r.verdict === "악재 우세" ? '#9DBBFF' : '#8CE3BE') : '#C9D6DE') + '">' + (r.revealed ? '🕵️ ' : '🔍 ') + r.hint + '</div>' : '')
-      + '<div class="rwait exp"><span>⏳ 고르지 않으면 사라져요</span><b data-rleft="' + r.id + '">' + Math.max(0, Math.ceil(((r.expiresAt || 0) - Date.now()) / 1000)) + '초</b></div>'
-      + '<div class="rbtns">'
-      +   '<button class="up" data-rumor="' + r.id + '" data-pick="real">✅ 사실이다</button>'
-      +   '<button class="dn" data-rumor="' + r.id + '" data-pick="fake">🎣 낚시다</button>'
-      + '</div>'
-      + '<div class="rbtns2">'
-      +   (r.checked ? '' : '<button data-check="' + r.id + '">🔍 팩트체크</button>')
-      +   (r.revealed ? '' : '<button data-info="' + r.id + '" title="정보상 감정료 · 총자산의 35% 또는 최소 1조 중 큰 금액">🕵️ 정보상 ' + shortWon(infoCost()) + '</button>')
-      + '</div>';
+    const dirTxt = r.choice === "up" ? "📈 오른다" : "📉 내린다";
+    if (r.stake){
+      body = meta
+        + '<div class="rwait"><span>' + dirTxt + ' · ' + r.stake.pct + '% 투자 · ' + shortWon(r.stake.margin) + '원</span><b data-rres="' + r.id + '">' + left + '초</b></div>'
+        + '<div class="rnote">결과가 나오면 자동 정산돼요 (매수 0.05% · 매도 0.15%)</div>';
+    } else if (r.noStake){
+      body = meta
+        + '<div class="rwait"><span>' + dirTxt + ' · 투자 없이 결과 보기</span><b data-rres="' + r.id + '">' + left + '초</b></div>'
+        + '<button class="rnone" data-rstake="' + r.id + '" style="margin-top:7px">💰 지금이라도 태우기</button>';
+    } else {
+      const cashTxt = shortWon(state.cash);
+      body = meta
+        + '<div class="rwait"><span>' + dirTxt + '에 걸었어요 · 결과까지</span><b data-rres="' + r.id + '">' + left + '초</b></div>'
+        + '<div class="rpick"><div class="ph">보유 현금 <b>' + cashTxt + '</b>의 얼마를 태울까요?</div>'
+        +   '<div class="rpcts">' + RUMOR_STAKES.map(pct => {
+              const pv = rumorStakePreview(r, pct);
+              return '<button data-rbet="' + r.id + '" data-pct="' + pct + '"><b>' + pct + '%</b><span>' + (pv.qty > 0 ? shortWon(pv.budget) : "부족") + '</span></button>';
+            }).join("") + '</div>'
+        +   '<div class="rnote">결과가 나오면 자동 정산 · 수수료 매수 0.05% / 매도 0.15%</div>'
+        + '</div>'
+        + '<button class="rnone" data-rnone="' + r.id + '">투자 없이 결과만 보기</button>';
+    }
+    return '<div class="rumor"><div class="rhead">🔔 긴급 속보 · ' + s.name + '</div>'
+      + '<div class="rtitle">' + r.title + '</div>' + body + '</div>';
   }
+
+  body = meta
+    + '<div class="rwait exp"><span>⏳ 고르지 않으면 사라져요</span><b data-rleft="' + r.id + '">' + Math.max(0, Math.ceil(((r.expiresAt || 0) - Date.now()) / 1000)) + '초</b></div>'
+    + '<div class="rdirs">'
+    +   '<button class="up" data-rpick="' + r.id + '" data-dir="up">📈 오른다</button>'
+    +   '<button class="dn" data-rpick="' + r.id + '" data-dir="down">📉 내린다</button>'
+    + '</div>'
+    + '<div class="rbtns2">'
+    +   (r.checked ? '' : '<button data-check="' + r.id + '">🔍 팩트체크</button>')
+    +   (r.revealed ? '' : '<button data-info="' + r.id + '" title="정보상 감정료 · 총자산의 35% 또는 최소 1조 중 큰 금액">🕵️ 정보상 ' + shortWon(infoCost()) + '</button>')
+    + '</div>';
   return '<div class="rumor"><div class="rhead">🔔 긴급 속보 · ' + s.name + '</div>'
     + '<div class="rtitle">' + r.title + '</div>' + body + '</div>';
 }
@@ -3189,7 +3378,8 @@ function renderPositions(){
     const pnl = posPnl(p), rate = (pnl / p.margin) * 100;
     const liq = liqPriceOf(p);
     const dirTxt = p.side === "long" ? "롱" : "숏";
-    const badge = '<span class="levbadge ' + p.side + '">' + dirTxt + " " + p.lev + "x</span>";
+    const badge = '<span class="levbadge ' + p.side + '">' + dirTxt + " " + p.lev + "x</span>"
+      + (p.rumor ? '<span class="levbadge" style="background:rgba(44,201,138,.16);color:#0E9F6E">🔔 속보</span>' : '');
     const dist = Math.abs((cur - liq) / cur) * 100;
     const fill = clamp(100 - dist * 4, 4, 100);
     return '<div class="pos-row" data-code="' + p.code + '">'
@@ -4144,12 +4334,27 @@ function bind(){
   const rb = $("#rumorBtn"); if (rb) rb.addEventListener("click", () => spawnRumor(true));
   const rl = $("#rumorList");
   if (rl) rl.addEventListener("click", e => {
-    const pick = e.target.closest("[data-rumor]");
-    if (pick) { chooseRumor(pick.dataset.rumor, pick.dataset.pick); return; }
+    noteInput();
+    const pick = e.target.closest("[data-rpick]");
+    if (pick) { chooseRumor(pick.getAttribute("data-rpick"), pick.getAttribute("data-dir")); return; }
+    const bet = e.target.closest("[data-rbet]");
+    if (bet) { betRumor(bet.getAttribute("data-rbet"), Number(bet.getAttribute("data-pct")) || 0); return; }
+    const none = e.target.closest("[data-rnone]");
+    if (none) {
+      const r = (state.rumors || []).find(x => x.id === none.getAttribute("data-rnone"));
+      if (r){ r.noStake = true; renderRumors(); save(true); }
+      return;
+    }
+    const stake = e.target.closest("[data-rstake]");
+    if (stake) {
+      const r = (state.rumors || []).find(x => x.id === stake.getAttribute("data-rstake"));
+      if (r){ r.noStake = false; renderRumors(); }
+      return;
+    }
     const chk = e.target.closest("[data-check]");
-    if (chk) { factCheckRumor(chk.dataset.check); return; }
+    if (chk) { factCheckRumor(chk.getAttribute("data-check")); return; }
     const inf = e.target.closest("[data-info]");
-    if (inf) { buyInfo((state.rumors || []).find(r => r.id === inf.dataset.info)); return; }
+    if (inf) { buyInfo((state.rumors || []).find(r => r.id === inf.getAttribute("data-info"))); return; }
   });
 
   // 게임: 레버리지 주문 모드
@@ -4460,11 +4665,15 @@ function boot(){
   showScreen("home");
   initRivals();
   catchUpOffline();
-  if (!state.nextRumorAt) state.nextRumorAt = Date.now() + 120000 + Math.random() * 180000;
+  if (!state.nextRumorAt || state.nextRumorAt < Date.now() + 60000) state.nextRumorAt = Date.now() + nextGap();
   if (!state.nextNewsAt) state.nextNewsAt = Date.now() + 120000 + Math.random() * 180000;
+  noteInput();   // 앱을 연 직후 몇 초간은 속보가 튀어나오지 않게
   setInterval(() => { tickOnce(); }, TICK_MS);
   setTimeout(() => { updateHomeLive(); if (detailCode) drawBig(); }, 60);
 }
+
+/* 사용자가 버튼을 누르는 순간을 기록 — 자동 속보가 조작 직후에 겹치지 않게 하는 기준 */
+["pointerdown", "touchstart", "keydown"].forEach(ev => window.addEventListener(ev, noteInput, true));
 
 document.addEventListener("DOMContentLoaded", boot);
 </script>
