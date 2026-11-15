@@ -778,7 +778,7 @@
 
     <div id="homeHungerWrap"></div>
 
-    <div class="sec-title" style="margin-top:18px"><span>🔔 긴급 속보 <span style="color:var(--sub2);font-weight:700;font-size:11px">찌라시</span></span><button class="more" id="rumorBtn">+ 새 소문 엿듣기</button></div>
+    <div class="sec-title" style="margin-top:18px"><span>🔔 긴급 속보 <span style="color:var(--sub2);font-weight:700;font-size:11px">찌라시</span></span><button class="more" id="rumorBtn">+ 소문 엿듣기</button></div>
     <div id="rumorList"></div>
 
     <div class="sec-title"><span>실시간 시세</span><span class="more" id="liveDot">● LIVE</span></div>
@@ -1224,9 +1224,10 @@ function retireStock(code, t){
   delete ticks[code];
   if (typeof detailCode === "string" && detailCode === code) showScreen("home");
 }
-function listNewStock(t, ui){
+function listNewStock(t, ui, opts){
   const now = t || Date.now();
-  if (DYN.length >= IPO_MAX){
+  const fresh = !!(opts && opts.fresh);   // 상장폐지 자리 대체 상장 — 종목 수를 그대로 유지한다
+  if (!fresh && DYN.length >= IPO_MAX){
     const victim = DYN.find(d => !stockHeld(d.code));
     if (!victim) return null;   // 보유 중인 종목은 정리하지 않고 다음 상장으로 미룬다
     retireStock(victim.code, now);
@@ -1259,6 +1260,121 @@ function listNewStock(t, ui){
   save(true);
   return s;
 }
+
+/* ---------------- 폭락 & 상장폐지(청산) ----------------
+   가끔(평균 25분에 1번) 한 종목에 대폭락(떡락)이 걸린다. 기준가의 12% 아래로 추락하면
+   상장폐지(청산)되고 10~20초 뒤 새 종목이 그 자리에 대체 상장된다.
+   한 번에 한 종목만 — 청산/폭락이 진행 중이거나 쿨다운이면 다른 종목은 걸리지 않는다. */
+const CRASH_CHANCE = 0.0020;            // 틱당 대폭락 발생 확률 (평균 약 20분에 1회)
+const CRASH_TICKS = [14, 28];           // 대폭락 지속(틱)
+const DELIST_RATIO = 0.12;              // 기준가 대비 이 비율 이하 → 상장폐지
+const RELIST_GAP = [10000, 20000];      // 대체 상장까지 대기(ms)
+const DELIST_COOLDOWN = 15 * 60 * 1000; // 청산 후 다른 종목 청산 금지(15분)
+const CRASH_REST = [2 * 60 * 1000, 5 * 60 * 1000];  // 폭락이 지나간 뒤 휴식
+
+function crashRunning(t){ return !!(state.crash && state.crash.code && t < state.crash.until); }
+
+function startCrash(code, t){
+  const s = BY_CODE[code];
+  if (!s || crashRunning(t)) return null;
+  const ticksLen = CRASH_TICKS[0] + Math.random() * (CRASH_TICKS[1] - CRASH_TICKS[0]);
+  state.crash = { code: s.code, until: t + ticksLen * TICK_MS };
+  state.news.unshift({ t, code: s.code, name: s.name, color: s.color, txt: "🚨 " + s.name + " 대폭락 시작… 매도 물량 폭주", pct: 0 });
+  if (state.news.length > 8) state.news.length = 8;
+  if (!SILENT){ renderNews(); toast("🚨 " + s.name + " 대폭락! 줄줄이 매도 물량"); }
+  return s;
+}
+
+function maybeStartCrash(t){
+  if (state.crash && t >= state.crash.until){
+    /* 폭락이 끝났는데 살아남았으면 잠시 쉬여 다른 종목으로 번지지 않게 */
+    state.crash = null;
+    state.crashLockUntil = Math.max(state.crashLockUntil || 0, t + CRASH_REST[0] + Math.random() * (CRASH_REST[1] - CRASH_REST[0]));
+  }
+  if (state.crash) return;
+  if (state.relistAt && t < state.relistAt) return;      // 대체 상장 전에는 새 폭락 금지
+  if (t < (state.delistLockUntil || 0)) return;          // 청산 쿨다운
+  if (t < (state.crashLockUntil || 0)) return;
+  if (Math.random() > CRASH_CHANCE) return;
+  const pool = STOCKS.filter(s => (state.prices[s.code] || 0) > s.base * 0.3);
+  if (pool.length < 2) return;
+  startCrash(pool[Math.floor(Math.random() * pool.length)].code, t);
+}
+
+/* 현물·레버리지·예약 주문을 모두 정리하고 종목을 목록에서 내린다 */
+function delistStock(code, t){
+  const s = BY_CODE[code];
+  if (!s) return null;
+  const name = s.name, px = state.prices[code] || 0;
+  let lostHold = 0, longHit = 0, shortWin = 0, backCash = 0;
+
+  /* 1) 예약 주문 먼저 정리(예수금·잠긴 수량 반환) */
+  (state.pending || []).filter(o => o.code === code).forEach(o => {
+    if (o.mode === "long1" && o.side === "sell"){
+      const h = state.holdings[code] || { qty: 0, avg: o.avg || px };
+      h.qty += o.qty; state.holdings[code] = h;
+    } else {
+      state.cash += o.reserve || 0; backCash += o.reserve || 0;
+    }
+  });
+  state.pending = (state.pending || []).filter(o => o.code !== code);
+
+  /* 2) 현물 보유 → 0원 정산(전액 손실) */
+  const h = state.holdings[code];
+  if (h && h.qty > 0){
+    lostHold = Math.round(h.qty * (h.avg || px));
+    pushTrade({ code, name, side: "delist", qty: h.qty, price: 0, total: -Math.round(h.qty * px), lev: 1, fee: 0, kind: "delist" });
+    delete state.holdings[code];
+  }
+
+  /* 3) 포지션 정산 — 롱은 마진 전액 손실, 숏은 배수만큼 이익 */
+  (state.positions || []).filter(p => p.code === code).slice().forEach(p => {
+    const ret = p.side === "long" ? -1 : 1;
+    const pnl = clamp(p.margin * p.lev * ret, -p.margin, p.margin * 30);
+    const back = Math.max(0, Math.round(p.margin + pnl));
+    state.cash += back;
+    state.positions = state.positions.filter(x => x.id !== p.id);
+    pushTrade({ code, name, side: "close", qty: p.qty, price: 0, total: Math.round(pnl), lev: p.lev, fee: 0, kind: "delist" });
+    if (p.side === "long") longHit++; else shortWin++;
+  });
+
+  /* 4) 목록에서 내리고 대체 상장 예약 */
+  DYN = DYN.filter(d => d.code !== code);
+  retireStock(code, t);
+  state.delisted = (state.delisted || []).concat([{ code, name, at: t }]).slice(-12);
+  state.crash = null;
+  state.delistLockUntil = t + DELIST_COOLDOWN;
+  state.crashLockUntil = state.delistLockUntil;
+  state.relistAt = t + RELIST_GAP[0] + Math.random() * (RELIST_GAP[1] - RELIST_GAP[0]);
+  state.news.unshift({ t, code: null, name, color: s.color, txt: "💥 " + name + " 상장폐지(청산) · 보유 주식 0원 정산", pct: -100 });
+  if (state.news.length > 8) state.news.length = 8;
+
+  if (!SILENT){
+    let msg = "💥 " + name + " 상장폐지(청산)!";
+    if (lostHold > 0) msg += " 보유 " + shortWon(lostHold) + "원 0원 정산";
+    if (longHit) msg += " 롱 " + longHit + "건 청산";
+    if (shortWin) msg += " 숏 " + shortWin + "건 대박";
+    toast(msg);
+    renderNews(); renderHome(); renderInvest(); renderHistory(); renderPositions(); renderPending(); renderRumors(); renderRank();
+    updateHomeLive(); updateInvestLive(); if (activeTab === "invest") renderInvest();
+    if (detailCode) { updateDetailLive(); drawBig(); }
+  }
+  save(!SILENT);
+  return { code, name, lostHold, longHit, shortWin, backCash };
+}
+
+function relistAfterDelist(t, ui){
+  state.relistAt = 0;
+  const s = listNewStock(t, ui !== false && !SILENT, { fresh: true });
+  return s;
+}
+
+/* 테스트용 훅 — 실제 플레이에서는 호출되지 않는다 */
+window.__moeigamiTestHook = {
+  crash(code){ return startCrash(code || STOCKS[STOCKS.length - 1].code, Date.now()); },
+  delist(code){ return delistStock(code || STOCKS[STOCKS.length - 1].code, Date.now()); },
+  crashChance: CRASH_CHANCE, cooldownMs: DELIST_COOLDOWN
+};
 
 /* ---------------- 유틸 ---------------- */
 const $ = s => document.querySelector(s);
@@ -1355,6 +1471,11 @@ function newState(){
     ads: { day: "", count: 0, lastAt: 0 },
     nextNewsAt: 0,
     nextRumorAt: 0,
+    crash: null,          // { code, until } — 한 번에 한 종목만 대폭락
+    crashLockUntil: 0,
+    relistAt: 0,          // 상장폐지 후 대체 상장 시각
+    delistLockUntil: 0,
+    delisted: [],         // 최근 상장폐지 이력
     hunger: 100,
     hungerAt: 0
   };
@@ -1434,6 +1555,11 @@ function load(){
     if (typeof p.nextNewsAt === "number") state.nextNewsAt = p.nextNewsAt;
     if (typeof p.nextRumorAt === "number") state.nextRumorAt = p.nextRumorAt;
     if (typeof p.nextIpoAt === "number") state.nextIpoAt = p.nextIpoAt;
+    if (p.crash && typeof p.crash === "object" && BY_CODE[p.crash.code] && Number(p.crash.until) > Date.now()) state.crash = { code: p.crash.code, until: Number(p.crash.until) };
+    if (typeof p.crashLockUntil === "number") state.crashLockUntil = p.crashLockUntil;
+    if (typeof p.relistAt === "number") state.relistAt = p.relistAt;
+    if (typeof p.delistLockUntil === "number") state.delistLockUntil = p.delistLockUntil;
+    if (Array.isArray(p.delisted)) state.delisted = p.delisted.filter(d => d && d.code).slice(-12);
   } catch(e) { state = newState(); }
 }
 
@@ -1456,35 +1582,95 @@ function save(force){
       likes: state.likes, likeMine: state.likeMine, pending: state.pending,
       bots: state.bots, earned: state.earned, ads: state.ads,
       nextNewsAt: state.nextNewsAt, nextRumorAt: state.nextRumorAt, nextIpoAt: state.nextIpoAt,
+      crash: state.crash, crashLockUntil: state.crashLockUntil, relistAt: state.relistAt,
+      delistLockUntil: state.delistLockUntil, delisted: state.delisted,
       dynamic: DYN,
       hunger: state.hunger, hungerAt: state.hungerAt
     }));
   } catch(e) {}
+  saveTicks(force);
+}
+
+/* ---------------- 차트 히스토리 저장/복원 ----------------
+   앱을 나갔다 들어오면 차트가 새로 그려져 모양이 통째로 바뀌던 문제를 막기 위해
+   최근 틱을 따로 저장하고, 돌아오면 그 위에 경과 시간만큼만 이어 붙인다. */
+const TICK_KEY = "moeigami_ticks_v1";
+const TICK_KEEP = 520;         // 저장할 종목당 최근 틱 수(전체 탭 9분 커버)
+let lastTickSave = 0;
+function saveTicks(force){
+  const now = Date.now();
+  if (!force && now - lastTickSave < 15000) return;
+  lastTickSave = now;
+  try {
+    const h = {};
+    Object.keys(ticks).forEach(code => {
+      const a = (ticks[code] || []).filter(x => x && isFinite(x.t) && isFinite(x.p) && x.p > 0);
+      if (a.length < 2) return;
+      h[code] = a.slice(-TICK_KEEP).map(x => [Math.round(x.t), x.p]);
+    });
+    localStorage.setItem(TICK_KEY, JSON.stringify({ at: now, h }));
+  } catch(e) {}
+}
+function loadTicks(){
+  let raw = null;
+  try { raw = localStorage.getItem(TICK_KEY); } catch(e) {}
+  if (!raw) return {};
+  try {
+    const p = JSON.parse(raw);
+    const h = (p && p.h) || {};
+    const out = {};
+    Object.keys(h).forEach(code => {
+      if (!BY_CODE[code] || !Array.isArray(h[code])) return;
+      const arr = [];
+      h[code].forEach(x => {
+        if (!Array.isArray(x) || x.length < 2) return;
+        const t = Number(x[0]), pr = Number(x[1]);
+        if (!isFinite(t) || !isFinite(pr) || pr <= 0 || t <= 0) return;
+        if (arr.length && t <= arr[arr.length - 1].t) return;   // 타임스탬프 오름차순 유지
+        arr.push({ t, p: pr });
+      });
+      if (arr.length >= 8) out[code] = arr;
+    });
+    return out;
+  } catch(e) { return {}; }
 }
 
 /* ---------------- 시세 시뮬레이션 ---------------- */
 const NEWS_GAP = [120000, 300000];
 function nextGap(){ return NEWS_GAP[0] + Math.random() * (NEWS_GAP[1] - NEWS_GAP[0]); }
 function scheduleNews(base){ state.nextNewsAt = (base || Date.now()) + nextGap(); }
-function scheduleRumor(base){ state.nextRumorAt = (base || Date.now()) + nextGap(); }
+function nextRumorGap(){ return RUMOR_GAP[0] + Math.random() * (RUMOR_GAP[1] - RUMOR_GAP[0]); }
+function scheduleRumor(base){ state.nextRumorAt = (base || Date.now()) + nextRumorGap(); }
 
-/* ---------------- 변동성 엔진 (2026-11-15 대폭 상향) ----------------
-   기존엔 틱당 0.16~0.6%로 잔잔했지만, 이제 기본 변동폭을 6배 넘게 키우고
-   종목별 '추세(모멘텀)'와 '급변 구간'을 더해 차트가 실제처럼 크게 출렁이게 한다. */
-const VOL_BOOST = 2.9;              // 기본 변동폭 배율 (기존 대비)
-const VOL_SPIKE_CHANCE = 0.02;      // 한 틱짜리 랜덤 스파이크 확률
-const VOL_MAX_TICK = 0.1;           // 한 틱 최대 변동(±10%) — 차트가 깨지지 않는 선
-const VOL_REGIME = { chance: 0.06, minTicks: 3, maxTicks: 9, mult: [1.8, 3.0] };
+/* ---------------- 변동성 엔진 (2026-11-15 2차 상향 · 롤러코스터) ----------------
+   틱(1.2초)당 기본 변동폭을 크게 키우고, 종목별 '추세(모멘텀)'와 '급변 구간',
+   한 틱짜리 랜덤 스파이크를 더해 차트가 위아래로 크게 출렁이게 한다. */
+const VOL_BOOST = 8.5;              // 기본 변동폭 배율 (1차 2.9 → 8.5)
+const VOL_SPIKE_CHANCE = 0.03;      // 한 틱짜리 랜덤 스파이크 확률
+const VOL_MAX_TICK = 0.22;          // 한 틱 최대 변동(±22%) — 차트가 깨지지 않는 선
+const VOL_REGIME = { chance: 0.09, minTicks: 3, maxTicks: 10, mult: [2.0, 3.6] };
+/* 방향성 추세(랠리/하락) — 몇 틱 동안 한쪽으로 밀어붙인다 */
+const VOL_TREND = { chance: 0.035, min: 3, max: 8, pow: [1.2, 2.4] };
+/* 펌핑 뒤 덤핑(차익실현 폭락) — 연속 상승 뒤 확률적으로 강하게 꺾인다 */
+const VOL_PUMP = { turn: 4.5, chance: 0.26 };
+const VOL_CAP = { normal: 0.06, hot: 0.09 };   // 종목별 기본 변동 상한(급등주는 더 크게)
+/* 기저가 대비 가격 허용 범위 — 상·하한에 붙어 차트가 평평해지지 않게 넉넉히 */
+const PRICE_RANGE = { normal: [0.15, 6.0], hot: [0.1, 10.0] };
 const volState = {};                // code -> { mo: 추세, regUntil, regMult }
 function volOf(s){
   let v = volState[s.code];
-  if (!v) v = volState[s.code] = { mo: 0, regUntil: 0, regMult: 1 };
+  if (!v) v = volState[s.code] = { mo: 0, regUntil: 0, regMult: 1, trendUntil: 0, trendDir: 0, trendPow: 1, pump: 0, dumpUntil: 0 };
   return v;
 }
 function baseVolOf(s){
-  const cap = s.hot ? 0.0135 : 0.0085;  // 급등주는 더 크게, 일반주도 틱당 최대 0.85%
-  return Math.min(s.vol * VOL_BOOST, cap);
+  const cap = s.hot ? VOL_CAP.hot : VOL_CAP.normal;
+  /* 급등주는 기본 변동성 자체가 커서 배율을 조금 덜어 준다(여전히 일반주의 2~3배) */
+  const boost = s.hot ? VOL_BOOST * 0.72 : VOL_BOOST;
+  return Math.min(s.vol * boost, cap);
 }
+function priceFloor(s){ const r = s.hot ? PRICE_RANGE.hot : PRICE_RANGE.normal; return Math.max(1, Math.round(s.base * r[0])); }
+function priceCeil(s){ const r = s.hot ? PRICE_RANGE.hot : PRICE_RANGE.normal; return Math.max(100, Math.round(s.base * r[1])); }
+function safePx(p, fallback){ return (typeof p === "number" && isFinite(p) && p > 0) ? p : fallback; }
 function tickShock(s, t){
   const v = volOf(s);
   /* 급변 구간: 가끔 3~9틱 동안 변동폭이 2~4배로 터진다 */
@@ -1495,28 +1681,92 @@ function tickShock(s, t){
   const regMult = t < v.regUntil ? v.regMult : 1;
   const bv = baseVolOf(s);
   let shock = gauss() * bv * regMult;
-  if (Math.random() < VOL_SPIKE_CHANCE) shock *= 2.4 + Math.random() * 2.4;      // 순간 급등/급락
-  if (s.hot && Math.random() < 0.05) shock *= (Math.random() < 0.6 ? 2.8 : 2.3); // 급등주 랠리
+
+  /* 방향성 추세(랠리/하락): 몇 틱 동안 한쪽으로 밀어붙이되 잔진동은 남긴다 */
+  if (t >= v.trendUntil && Math.random() < VOL_TREND.chance){
+    v.trendDir = Math.random() < 0.5 ? 1 : -1;
+    v.trendUntil = t + (VOL_TREND.min + Math.random() * (VOL_TREND.max - VOL_TREND.min)) * TICK_MS;
+    v.trendPow = VOL_TREND.pow[0] + Math.random() * (VOL_TREND.pow[1] - VOL_TREND.pow[0]);
+  }
+  if (t < v.trendUntil && v.trendDir) shock += bv * v.trendDir * v.trendPow;
+
+  if (Math.random() < VOL_SPIKE_CHANCE) shock *= 3.5 + Math.random() * 3.0;      // 순간 급등/급락(3.5~6.5배)
+  if (s.hot && Math.random() < 0.06) shock *= (Math.random() < 0.6 ? 2.8 : 2.3); // 급등주 랠리
+
+  /* 펌핑 뒤 덤핑 / 덤핑 뒤 반등 — 오르다 고점에서 시원하게 꺾인다 */
+  v.pump = (v.pump || 0) * 0.8 + shock / bv;        // bv 단위로 누적
+  if (t >= (v.dumpUntil || 0)){
+    if (v.pump > VOL_PUMP.turn && Math.random() < VOL_PUMP.chance){
+      v.trendDir = -1;
+      v.trendUntil = t + (3 + Math.random() * 4) * TICK_MS;
+      v.trendPow = VOL_TREND.pow[1];
+      v.mo = -bv * 3.2;
+      shock = -bv * (2.2 + Math.random() * 1.8) - Math.abs(gauss() * bv);   // -3~-8% 한 방
+      v.pump = 0; v.dumpUntil = t + 8 * TICK_MS;
+    } else if (v.pump < -VOL_PUMP.turn && Math.random() < VOL_PUMP.chance * 0.8){
+      v.trendDir = 1;
+      v.trendUntil = t + (3 + Math.random() * 4) * TICK_MS;
+      v.trendPow = VOL_TREND.pow[1];
+      v.mo = bv * 3.2;
+      shock = bv * (2.0 + Math.random() * 1.6) + Math.abs(gauss() * bv);
+      v.pump = 0; v.dumpUntil = t + 8 * TICK_MS;
+    }
+  }
   /* 추세(모멘텀): 최근 흐름이 몇 틱 이어져 차트에 파도가 생긴다 */
   v.mo = clamp(v.mo * 0.84 + shock * 0.5, -bv * 3.2, bv * 3.2);
   return clamp(shock + v.mo * 0.30, -VOL_MAX_TICK, VOL_MAX_TICK);
 }
+/* 차트 포인트 추가는 이 함수로만 — 타임스탬프는 항상 이전 점보다 크게 보장한다.
+   (앱 복귀·오프라인 따라잡기·복원이 겹쳐도 X좌표가 뒤로 꺾이지 않게) */
+function pushTick(code, t, p){
+  const arr = ticks[code];
+  if (!arr) return null;
+  if (typeof p !== "number" || !isFinite(p) || p <= 0) return null;
+  const last = arr.length ? arr[arr.length - 1] : null;
+  let ts = Number(t);
+  if (!isFinite(ts)) ts = last ? last.t + TICK_MS : Date.now();
+  if (last) ts = Math.max(last.t + 1, ts);
+  const pt = { t: ts, p };
+  arr.push(pt);
+  if (arr.length > 900) arr.splice(0, arr.length - 900);
+  return pt;
+}
+
+/* 초기(또는 복원 실패 시) 차트 시드 — 지금 변동성 그대로 뒤로 걸어가며 만든다 */
 function seedTicks(code, price){
   const now = Date.now();
   const s = BY_CODE[code];
   const arr = [];
-  let p = price;
+  const bv = baseVolOf(s);
+  const anchor = safePx(price, snap(s.base));
+  let p = anchor;
   for (let i = 0; i < 420; i++){
     arr.push({t: now - i * TICK_MS, p: snap(p)});
-    p = p / (1 + gauss() * baseVolOf(s) * 0.9);
-    p = clamp(p, s.base * 0.4, s.base * 2.5);
+    const pull = ((s.base - p) / s.base) * 0.05;            // 기저가에서 너무 멀어지지 않게
+    const step = clamp(gauss() * bv * 0.85 + pull, -VOL_MAX_TICK, VOL_MAX_TICK);
+    p = p / (1 + step);
+    if (!isFinite(p) || p <= 0) p = anchor;
+    p = clamp(p, priceFloor(s), priceCeil(s));
   }
   arr.reverse();
   return arr;
 }
 
 function initTicks(){
-  STOCKS.forEach(s => { ticks[s.code] = seedTicks(s.code, state.prices[s.code]); });
+  const saved = loadTicks();
+  const now = Date.now();
+  STOCKS.forEach(s => {
+    const price = safePx(state.prices[s.code], snap(s.base));
+    /* 저장해 둔 차트가 있으면 그대로 잇는다(앱을 나갔다 들어와도 그림이 새로 그려지지 않게) */
+    let hist = (saved[s.code] || []).filter(x => x.t <= now + 5000);
+    if (hist.length >= 8){
+      const last = hist[hist.length - 1];
+      /* 저장 시점 차이로 생기는 오른쪽 끝 점프를 없앤다 */
+      if (Math.abs(last.p - price) / Math.max(1, price) > 0.02) hist[hist.length - 1] = { t: last.t, p: price };
+    }
+    ticks[s.code] = hist.length >= 8 ? hist : seedTicks(s.code, price);
+  });
+  sanitizeTicks();   // 복원된 히스토리도 오름차순·유효값 보장
   const total = totalAsset();
   equityHist = [];
   for (let i = 0; i < 60; i++) equityHist.push({t: Date.now() - (60 - i) * 4000, v: total});
@@ -1538,27 +1788,49 @@ const NEWS_ACTS = [
 function stepMarket(t, ui){
   const ch = state.challenge;
   const prevPx = {};
+  maybeStartCrash(t);
   STOCKS.slice().forEach(s => {
     const prev = state.prices[s.code];
     if (typeof prev !== "number") return;
     prevPx[s.code] = prev;
-    const drift = ((s.base - prev) / s.base) * 0.026 + (ch ? (ch.kind === "crash" ? -0.0020 : 0.0013) : 0);
+    /* 대폭락 중인 종목은 매도세가 밀어붙인다(차트가 계단처럼 무너진다) */
+    const isCrash = !!(state.crash && state.crash.code === s.code && t < state.crash.until);
+    const crashDrift = isCrash ? -(0.10 + Math.random() * 0.07) : 0;
+    const kRef = s.hot ? 0.06 : 0.03;   // 기저가로 되돌리는 힘(급등주는 더 세게 — 추세가 폭주하지 않게)
+    const drift = ((s.base - prev) / s.base) * kRef + crashDrift + (ch ? (ch.kind === "crash" ? -0.0020 : 0.0013) : 0);
     /* 상장 직후 22초는 상장 버프(높은 변동성) */
-    const ipoBuff = s.dyn ? ((t - (s.listedAt || 0)) < 22000 ? 2.2 : 1) : 1;
+    const ipoBuff = s.dyn ? ((t - (s.listedAt || 0)) < 22000 ? 1.6 : 1) : 1;
     const chMult = ch ? (ch.kind === "crash" ? 1.7 : 1.25) : 1;
-    let shock = tickShock(s, t) * chMult * ipoBuff;
+    let shock = tickShock(s, t) * chMult * ipoBuff * (isCrash ? 1.7 : 1);
     let next = snap(prev * (1 + drift + shock));
-    const loB = s.hot ? 0.3 : 0.45, hiB = s.hot ? 2.8 : 2.2;
-    next = clamp(next, Math.max(kTick(prev), Math.round(s.base * loB)), Math.round(s.base * hiB));
-    if (next === prev) next = snap(prev * (1 + (Math.random() < .5 ? -1 : 1) * baseVolOf(s) * 0.8));
+    /* 폭락 중에는 상장폐지선(기준가의 12%) 아래까지 내려갈 수 있게 바닥을 열어 둔다 */
+    const loPx = Math.max(kTick(prev), isCrash ? Math.round(s.base * 0.05) : priceFloor(s));
+    const hiPx = Math.max(loPx + kTick(prev), priceCeil(s));
+    next = clamp(next, loPx, hiPx);
+    /* 상·하한에 닿으면 안쪽으로 튕겨 차트가 벽에 붙어 평평해지지 않게 */
+    if (next === loPx || next === hiPx){
+      const inner = next === loPx ? loPx * (1 + baseVolOf(s)) : hiPx * (1 - baseVolOf(s));
+      next = snap(clamp(inner, loPx, hiPx));
+    }
+    if (next === prev) next = snap(clamp(prev * (1 + (Math.random() < .5 ? -1 : 1) * baseVolOf(s) * 0.8), loPx, hiPx));
     state.prices[s.code] = next;
     s.volume = (s.volume || Math.floor(Math.random() * 900000) + 200000) + Math.floor(Math.random() * 12000) + 800;
     const arr = ticks[s.code];
     if (arr){
-      arr.push({t, p: next});
-      if (arr.length > 900) arr.splice(0, arr.length - 900);
+      pushTick(s.code, t, next);
     }
   });
+
+  /* --- 상장폐지 판정: 한 번에 한 종목만 (쿨다운·대체 상장 대기 중엔 없음) --- */
+  if (!state.relistAt && t >= (state.delistLockUntil || 0)){
+    const dying = STOCKS.filter(x => (state.prices[x.code] || 0) > 0 && state.prices[x.code] <= x.base * DELIST_RATIO);
+    if (dying.length){
+      const victim = dying[Math.floor(Math.random() * dying.length)];
+      delistStock(victim.code, t);
+    }
+  }
+  /* --- 상장폐지된 자리에 새 종목 대체 상장(10~20초 뒤) --- */
+  if (state.relistAt && t >= state.relistAt) relistAfterDelist(t, ui);
 
   /* --- 무작위 신규 상장 --- */
   if (!state.nextIpoAt) state.nextIpoAt = t + nextIpoGap();
@@ -1572,9 +1844,9 @@ function stepMarket(t, ui){
   if (t >= state.nextNewsAt){
     const s = STOCKS[Math.floor(Math.random() * STOCKS.length)];
     const act = NEWS_ACTS[Math.floor(Math.random() * NEWS_ACTS.length)];
-    const move = (0.012 + Math.random() * 0.048) * act.dir;
+    const move = (0.02 + Math.random() * 0.09) * act.dir;
     const before = state.prices[s.code];
-    state.prices[s.code] = snap(clamp(before * (1 + move), s.base * 0.3, s.base * 3.2));
+    state.prices[s.code] = snap(clamp(before * (1 + move), priceFloor(s), priceCeil(s)));
     if (ticks[s.code] && ticks[s.code].length) ticks[s.code][ticks[s.code].length - 1].p = state.prices[s.code];
     state.news.unshift({ t, code: s.code, txt: act.txt, pct: move * 100 });
     if (state.news.length > 8) state.news.length = 8;
@@ -1596,9 +1868,9 @@ function stepMarket(t, ui){
   }
   if (!state.nextRumorAt) scheduleRumor(t);
   if (t >= state.nextRumorAt){
-    if (activeRumors().length >= 2) state.nextRumorAt = t + 10000;
-    else if (spawnRumor(false)) scheduleRumor(t);            // 정상 발생 → 2~5분 뒤
-    else state.nextRumorAt = t + 4000 + Math.random() * 5000;  // 손가락이 바쁘면 잠시 미룸
+    if (activeRumors().length >= 2) state.nextRumorAt = t + 8000;
+    else if (spawnRumor(false)) scheduleRumor(t);              // 정상 발생 → 45~110초 뒤
+    else state.nextRumorAt = t + 2500 + Math.random() * 2500;  // 시트가 열려 있으면 잠깐만 미룸
   }
 
   /* --- AI 라이벌 수익률 흔들기 --- */
@@ -1649,9 +1921,22 @@ function tickOnce(){
 
 /* --- 오프라인 경과 시간 따라잡기 --- */
 function fastForward(n){
+  const now = Date.now();
   n = Math.min(900, Math.floor(n));
   if (n <= 0) return 0;
-  const base = Date.now() - n * TICK_MS;
+  /* 이미 찍혀 있는 마지막 틱보다 앞선 시각부터 채우면 차트가 거꾸로 그려진다 — 그 뒤로만 잇는다 */
+  let lastT = 0;
+  Object.keys(ticks).forEach(c => {
+    const a = ticks[c];
+    if (a && a.length) lastT = Math.max(lastT, Number(a[a.length - 1].t) || 0);
+  });
+  let base = now - n * TICK_MS;
+  if (lastT && lastT >= base){
+    /* 이미 최근 틱이 있으면 그 뒤로만, 그리고 미래 시각은 찍지 않는다 */
+    base = lastT + TICK_MS;
+    n = Math.min(n, Math.max(0, Math.floor((now - base) / TICK_MS) + 1));
+    if (n <= 0) return 0;
+  }
   SILENT = true;
   try {
     for (let i = 0; i < n; i++){
@@ -1659,7 +1944,23 @@ function fastForward(n){
       stepMarket(base + i * TICK_MS, false);
     }
   } finally { SILENT = false; }
+  sanitizeTicks();
   return n;
+}
+
+/* 차트 포인트 정리: 유효 숫자·오름차순·중복 없이, 최근 900개만 */
+function sanitizeTicks(){
+  Object.keys(ticks).forEach(code => {
+    const a = ticks[code] || [];
+    const out = [];
+    for (let i = 0; i < a.length; i++){
+      const x = a[i];
+      if (!x || !isFinite(x.t) || !isFinite(x.p) || x.p <= 0) continue;
+      if (out.length && x.t <= out[out.length - 1].t) continue;
+      out.push({ t: x.t, p: x.p });
+    }
+    ticks[code] = out.length > 900 ? out.slice(-900) : out;
+  });
 }
 
 function catchUpOffline(){
@@ -1674,6 +1975,8 @@ function catchUpOffline(){
   const pauseMin = Math.max(0, elapsedMin - hungeredMinutes(hungerBefore));
   const activeMin = Math.max(0, elapsedMin - pauseMin);
   const offlineIncome = state.challenge ? 0 : Math.floor(economyPerMin() * activeMin);
+  /* 차트가 끊기지 않게: 경과 시간만큼(최대 900틱=18분) 중간 틱을 나눠 채운다.
+     몇 시간~며칠 비웠으면 최근 18분만 찱찱하게 채우고 그 이전은 건너뛴다. */
   const n = Math.min(900, Math.floor(elapsed / TICK_MS));
   ECON_PAUSE = true;
   try { fastForward(n); } finally { ECON_PAUSE = false; }
@@ -1709,7 +2012,10 @@ function stockEval(){
   let ev = 0, cost = 0;
   Object.keys(state.holdings).forEach(c => {
     const h = state.holdings[c];
-    ev += h.qty * state.prices[c];
+    if (!h || !(h.qty > 0)) return;
+    const px = state.prices[c];
+    if (typeof px !== "number" || !isFinite(px)) return;   // 상장폐지 등으로 시세가 없어진 종목은 제외
+    ev += h.qty * px;
     cost += h.qty * h.avg;
   });
   return { ev, cost };
@@ -1744,7 +2050,7 @@ function toast(msg){
   wrap.appendChild(el);
   setTimeout(() => { el.style.transition = "opacity .25s"; el.style.opacity = "0"; }, 2000);
   setTimeout(() => el.remove(), 2300);
-  while (wrap.children.length > 2) wrap.firstChild.remove();
+  while (wrap.children.length > 3) wrap.firstChild.remove();
 }
 
 /* ---------------- 차트 유틸 ---------------- */
@@ -1781,7 +2087,12 @@ function drawSpark(cv, code){
   const g = prep(cv);
   if (!g) return;
   const { ctx, w, h } = g;
-  const arr = ticks[code] || [];
+  const arr = [];
+  (ticks[code] || []).forEach(x => {
+    if (!x || !isFinite(x.t) || !isFinite(x.p) || x.p <= 0) return;
+    if (arr.length && x.t <= arr[arr.length - 1].t) return;
+    arr.push(x);
+  });
   if (arr.length < 2) return;
   const slice = arr.slice(-60);
   let lo = Infinity, hi = -Infinity;
@@ -1812,12 +2123,27 @@ let hover = null;
 const RANGE_MS = { "1m": 60*1000, "5m": 5*60*1000, "all": 9*60*1000 };
 
 function detailSeries(){
-  const arr = ticks[detailCode] || [];
-  const now = arr.length ? arr[arr.length-1].t : Date.now();
+  /* 정렬·중복 제거를 한 번 더 강제: 어떤 경로로 들어온 점이든 X가 뒤로 꺾이지 않게 */
+  const raw = ticks[detailCode] || [];
+  const arr = [];
+  for (let i = 0; i < raw.length; i++){
+    const x = raw[i];
+    if (!x || !isFinite(x.t) || !isFinite(x.p) || x.p <= 0) continue;
+    if (arr.length && x.t <= arr[arr.length - 1].t) continue;
+    arr.push(x);
+  }
+  const now = Date.now();
   const span = RANGE_MS[chartRange];
-  let pts = arr.filter(p => p.t >= now - span);
-  if (pts.length < 2) pts = arr.slice(-2);
-  return { pts, t0: now - span, t1: now };
+  const lastT = arr.length ? arr[arr.length - 1].t : now;
+  const t1 = Math.max(now, lastT);                     // 오른쪽 끝은 항상 ‘지금’
+  let t0 = Math.min(t1 - span, t1 - 1000);             // 창이 0으로 찌그러지지 않게
+  let pts = arr.filter(p => p.t >= t0 && p.t <= t1);
+  /* 데이터가 모자란 경우(상장 직후·방금 복원)에는 마지막 점들로 창을 당겨 그린다 */
+  if (pts.length < 2 && arr.length >= 2){
+    pts = arr.slice(-2);
+    t0 = Math.min(pts[0].t, t1 - span * 0.05);
+  }
+  return { pts, t0, t1 };
 }
 
 function drawBig(){
@@ -1827,6 +2153,8 @@ function drawBig(){
   if (!g) return;
   const { ctx, w, h } = g;
   const { pts, t0, t1 } = detailSeries();
+  if (pts.length < 2) return;
+  if (!(t1 > t0)) return;          // 창이 뒤집히면 그리지 않는다
   const open = state.opens[detailCode] || pts[0].p;
   const price = state.prices[detailCode];
 
@@ -2110,10 +2438,11 @@ function renderNews(){
     box.innerHTML = '<div class="empty" style="padding:26px 20px"><p>아직 뉴스가 없어요.<br>잠시 기다리면 시장 소식이 도착해요.</p></div>';
     return;
   }
-  box.innerHTML = state.news.slice(0, 5).filter(n => n && BY_CODE[n.code]).map(n => {
-    const s = BY_CODE[n.code];
+  box.innerHTML = state.news.slice(0, 5).filter(n => n && (BY_CODE[n.code] || n.name)).map(n => {
+    const live = !!BY_CODE[n.code];
+    const s = live ? BY_CODE[n.code] : { name: n.name || "", color: n.color || "#8B95A1" };
     const up = n.pct >= 0;
-    return '<div class="row" data-code="' + n.code + '">'
+    return '<div class="row"' + (live ? ' data-code="' + n.code + '"' : '') + '>'
       + '<div class="logo" style="background:' + s.color + ';color:' + textOn(s.color) + '">' + logoText(s.name) + '</div>'
       + '<div class="nm"><b>' + n.txt + '</b><span>' + s.name + ' · ' + hhmm(n.t) + '</span></div>'
       + '<div class="px"><b class="' + (up ? "up" : "down") + '" style="font-size:14px">' + pctStr(n.pct) + '</b></div>'
@@ -2122,6 +2451,7 @@ function renderNews(){
 }
 
 function updateHomeLive(){
+  renderRumorButton();
   // 자산
   const total = totalAsset();
   const { cost } = stockEval();
@@ -2234,7 +2564,7 @@ function updateInvestLive(){
   let histSide = "all";
 function renderHistory(){
   const box = $("#histBody");
-  let arr = state.trades.filter(t => t && BY_CODE[t.code]);
+  let arr = state.trades.filter(t => t && (BY_CODE[t.code] || t.kind === "delist"));
   if (histSide !== "all"){
     const allow = histSide === "buy" ? ["buy", "long"] : ["sell", "short", "close"];
     arr = arr.filter(t => allow.indexOf(t.side) >= 0);
@@ -2251,16 +2581,18 @@ function renderHistory(){
       curDay = dk; open = true;
       html += '<div class="daylabel">' + dayLabel(t.t) + '</div><div class="list">';
     }
-    const LBL = { buy: "매수", sell: "매도", long: "롱", short: "숏", close: "청산" };
+    const LBL = { buy: "매수", sell: "매도", long: "롱", short: "숏", close: "청산", delist: "폐지" };
     const lbl = LBL[t.side] || "체결";
     const badge = (t.side === "buy" || t.side === "long") ? "buy" : "sell";
-    const line = t.side === "close"
+    const line = t.kind === "delist"
+      ? "상장폐지 0원 정산" + (t.side === "delist" ? "" : (t.total > 0 ? " · +" : " · ") + fmt(t.total) + "원")
+      : t.side === "close"
       ? (t.total > 0 ? "+" : "") + fmt(t.total) + "원 손익"
       : fmt(t.qty) + "주 × " + fmt(t.price) + "원";
     const feeTxt = t.fee ? (" · 수수료 " + fmt(t.fee) + "원") : "";
     html += '<div class="trade-row">'
       + '<div class="side-badge ' + badge + '">' + lbl + '</div>'
-      + '<div class="t"><b>' + (BY_CODE[t.code] ? BY_CODE[t.code].name : t.code) + (t.lev ? ' <span style="color:var(--sub2);font-size:10.5px;font-weight:800">' + t.lev + 'x</span>' : '') + '</b><span>' + line + feeTxt + ' · ' + hhmmss(t.t) + '</span></div>'
+      + '<div class="t"><b>' + (BY_CODE[t.code] ? BY_CODE[t.code].name : (t.name || t.code)) + (t.lev ? ' <span style="color:var(--sub2);font-size:10.5px;font-weight:800">' + t.lev + 'x</span>' : '') + '</b><span>' + line + feeTxt + ' · ' + hhmmss(t.t) + '</span></div>'
       + '<div class="amt">' + fmt(t.total) + '원</div>'
       + '</div>';
   });
@@ -2347,6 +2679,7 @@ function setOrderMode(m){
 }
 
 function openDetail(code){
+  if (!BY_CODE[code]) { toast("상장폐지된 종목이에요"); showScreen("home"); return; }
   detailCode = code;
   orderSide = "buy";
   chartRange = "1m";
@@ -2388,11 +2721,11 @@ function attachChartEvents(){
 function updateDetailLive(){
   if (!detailCode) return;
   const code = detailCode, s = BY_CODE[code];
-  const p = state.prices[code], o = state.opens[code];
+  const p = safePx(state.prices[code], s.base), o = safePx(state.opens[code], p);
   const d = p - o, r = (d / o) * 100;
   const arr = ticks[code] || [];
-  const win = arr.filter(x => x.t >= Date.now() - (chartRange === "1m" ? 60000 : chartRange === "5m" ? 300000 : 9*3600000));
-  const use = win.length > 1 ? win : arr;
+  const win = arr.filter(x => x && isFinite(x.t) && x.p > 0 && x.t >= Date.now() - RANGE_MS[chartRange]);
+  const use = win.length > 1 ? win : arr.slice(-60);
   const hi = use.length ? Math.max(...use.map(x => x.p)) : p;
   const lo = use.length ? Math.min(...use.map(x => x.p)) : p;
 
@@ -2779,9 +3112,44 @@ const RUMORS = [
 ];
 let rumorCooldown = 0;
 const RUMOR_TTL = 15000;   // 미선택 속보는 15초 뒤 자동 소멸
-const RUMOR_QUIET = 9000;  // 버튼을 누른 직후 이 시간 동안은 자동 속보를 띄우지 않는다
+const RUMOR_QUIET = 2500;  // 조작 직후 2.5초만 자동 속보를 미룬다
 const RUMOR_RESOLVE = [9000, 14000];   // 방향을 고른 뒤 결과까지 (투자 비율 고를 시간)
 const RUMOR_STAKES = [10, 25, 50, 100]; // 보유 현금 대비 바로 투자할 비율 후보(%)
+const RUMOR_GAP = [45000, 110000];      // 자동 긴급속보 간격(45~110초)
+const RUMOR_FIRST = [20000, 55000];     // 앱 진입 후 첫 속보(20~55초)
+/* 유료 정보료 — 총자산의 12%(최소 5,000만원). 버튼에 금액을 바로 보여 준다 */
+function rumorCost(){ return Math.max(50000000, Math.round(totalAsset() * 0.12)); }
+function renderRumorButton(){
+  const btn = $("#rumorBtn");
+  if (!btn) return;
+  const cost = rumorCost();
+  btn.textContent = "+ 소문 엿듣기 (" + shortWon(cost) + ")";
+  const poor = (state.cash || 0) < cost;
+  btn.style.opacity = poor ? ".45" : "1";
+  btn.setAttribute("data-poor", poor ? "1" : "0");
+}
+function buyRumor(){
+  if (!state.rumors) state.rumors = [];
+  if (activeRumors().length >= 1){
+    toast("이미 확인할 속보가 있어요 · 결제되지 않았어요");
+    return null;   // 중복 결제 방지
+  }
+  const cost = rumorCost();
+  if ((state.cash || 0) < cost){
+    toast("현금이 부족해요 · 정보료 " + won(cost));
+    return null;
+  }
+  state.cash -= cost;
+  const r = spawnRumor(true);
+  if (!r){ toast("지금은 엿들을 소문이 없어요"); return null; }
+  noteInput();
+  renderRumorButton();
+  renderHome(); updateHomeLive();
+  if (detailCode) { updateDetailLive(); if (activeTab === "invest") renderInvest(); }
+  save(true);
+  toast("💰 정보료 -" + shortWon(cost) + "원 · 새 소문이 올라왔어요");
+  return r;
+}
 let lastInputAt = Date.now();
 function noteInput(){ lastInputAt = Date.now(); }
 function inputBusy(){
@@ -2814,8 +3182,7 @@ function updateRumorCountdown(){
 function spawnRumor(manual){
   if (!state.rumors) state.rumors = [];
   const now = Date.now();
-  if (manual && now < rumorCooldown) { toast("조금 뒤에 다시 엿들어 볼 수 있어요"); return null; }
-  /* 자동 속보는 사용자가 버튼을 누른 직후나 시트를 열어 조작 중일 땐 절대 겹쳐 뜨지 않는다 */
+  /* 자동 속보는 조작 직후 2.5초·시트가 열려 있을 때만 잠깐 미룬다(유료 엿듣기는 예외) */
   if (!manual && inputBusy()) return null;
   if (activeRumors().length >= 2) { if (manual) toast("이미 확인할 속보가 있어요"); return null; }
   const busy = activeRumors().map(r => r.title);
@@ -2910,9 +3277,9 @@ function settleRumorStake(r){
 function resolveRumor(r){
   r.done = true;
   const s = BY_CODE[r.code];
-  const mag = (0.06 + Math.random() * 0.08) * (r.real ? 1 : -1) * r.dir;
+  const mag = (0.08 + Math.random() * 0.10) * (r.real ? 1 : -1) * r.dir;
   const before = state.prices[r.code];
-  state.prices[r.code] = snap(clamp(before * (1 + mag), s.base * 0.4, s.base * 2.4));
+  state.prices[r.code] = snap(clamp(before * (1 + mag), priceFloor(s), priceCeil(s)));
   if (ticks[r.code] && ticks[r.code].length) ticks[r.code][ticks[r.code].length - 1].p = state.prices[r.code];
   state.news.unshift({ t: Date.now(), code: r.code, txt: (r.real ? "속보 사실로 확인 · " : "찌라시였던 것으로 확인 · ") + s.name, pct: mag * 100 });
   if (state.news.length > 8) state.news.length = 8;
@@ -3284,13 +3651,14 @@ function buyItem(id){
 function renderRumors(){
   const box = $("#rumorList");
   if (!box) return;
+  renderRumorButton();
   const list = (state.rumors || []).filter(r => !r.done).slice(0, 2);
   const doneRecent = (state.rumors || []).filter(r => r.done).slice(0, 1);
   const show = list.length ? list : doneRecent;
   if (!show.length){
     box.innerHTML = '<div class="rumor"><div class="rhead">👂 오늘의 소문</div>'
-      + '<div class="rtitle" style="color:#C9D6DE;font-size:13.5px;font-weight:700">아직 들려온 소문이 없어요.<br>잠시 기다리거나 직접 엿들어 보세요.</div>'
-      + '<div class="rmeta">속보는 2~5분마다 하나씩 생겨요</div></div>';
+      + '<div class="rtitle" style="color:#C9D6DE;font-size:13.5px;font-weight:700">아직 들려온 소문이 없어요.<br>잠시 있으면 긴급 속보가 올라와요.</div>'
+      + '<div class="rmeta">속보는 45~110초마다 알아서 올라와요</div></div>';
     return;
   }
   box.innerHTML = show.map(r => rumorCard(r)).join("");
@@ -4331,7 +4699,7 @@ function bind(){
   });
 
   // 게임: 속보
-  const rb = $("#rumorBtn"); if (rb) rb.addEventListener("click", () => spawnRumor(true));
+  const rb = $("#rumorBtn"); if (rb) rb.addEventListener("click", () => { noteInput(); buyRumor(); });
   const rl = $("#rumorList");
   if (rl) rl.addEventListener("click", e => {
     noteInput();
@@ -4635,6 +5003,8 @@ function resetAccount(){
   state.likes = keepLikes || {};
   state.likeMine = keepMine || {};
   ticks = {};
+  try { localStorage.removeItem(TICK_KEY); } catch(e) {}
+  lastTickSave = 0;
   initTicks();
   save(true);
   renderHome(); renderInvest(); renderHistory(); renderRank(); renderShop(); renderChallenge();
@@ -4665,9 +5035,11 @@ function boot(){
   showScreen("home");
   initRivals();
   catchUpOffline();
-  if (!state.nextRumorAt || state.nextRumorAt < Date.now() + 60000) state.nextRumorAt = Date.now() + nextGap();
+  if (!state.nextRumorAt || state.nextRumorAt < Date.now() + 15000){
+    state.nextRumorAt = Date.now() + RUMOR_FIRST[0] + Math.random() * (RUMOR_FIRST[1] - RUMOR_FIRST[0]);
+  }
   if (!state.nextNewsAt) state.nextNewsAt = Date.now() + 120000 + Math.random() * 180000;
-  noteInput();   // 앱을 연 직후 몇 초간은 속보가 튀어나오지 않게
+  noteInput();   // 앱을 연 직후 2.5초 안에 속보가 튀어나오지 않게
   setInterval(() => { tickOnce(); }, TICK_MS);
   setTimeout(() => { updateHomeLive(); if (detailCode) drawBig(); }, 60);
 }
@@ -4677,5 +5049,6 @@ function boot(){
 
 document.addEventListener("DOMContentLoaded", boot);
 </script>
+<script type="module" src="./src/ait-bridge.js"></script>
 </body>
 </html>
