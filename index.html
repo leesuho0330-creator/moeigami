@@ -752,6 +752,41 @@
   .hunger button{padding:6px 10px; border-radius:9px; background:var(--accent-soft); color:var(--accent); font-size:11px; font-weight:800;}
   .hunger-warn{margin:0 16px 10px; padding:11px 13px; border-radius:13px; background:var(--up-soft); color:var(--up); font-size:11.5px; font-weight:800; line-height:1.5;}
   .hunger-warn b{display:block; font-size:12px;}
+
+  /* --- 💎 프리미엄 상점 (정식 결제 오픈 전 준비 UI) --- */
+  .premium-box{margin:0 16px 12px; border-radius:18px; background:var(--card); box-shadow:var(--shadow); overflow:hidden;}
+  .premium-head{display:flex; align-items:center; gap:8px; padding:14px 15px 10px;}
+  .premium-head .pt{flex:1; min-width:0;}
+  .premium-head b{display:block; font-size:14.5px; font-weight:900; letter-spacing:-.01em;}
+  .premium-head span{display:block; font-size:10.5px; color:var(--sub); font-weight:600; margin-top:3px; line-height:1.45; word-break:keep-all;}
+  .boost-badge{
+    flex:0 0 auto; display:inline-flex; align-items:center; gap:4px; padding:5px 9px; border-radius:999px;
+    background:linear-gradient(120deg,#FFB020,#F0705F); color:#fff; font-size:10.5px; font-weight:900;
+    font-variant-numeric:tabular-nums; box-shadow:0 2px 8px rgba(240,112,95,.32);
+  }
+  .boost-badge.off{display:none;}
+  .pm-item{display:flex; gap:11px; padding:12px 15px; align-items:center; position:relative; border-top:1px solid var(--line);}
+  .pm-item .pm-e{width:40px; height:40px; flex:0 0 auto; border-radius:12px; display:grid; place-items:center; font-size:20px; background:var(--card2);}
+  .pm-item .pm-main{flex:1; min-width:0;}
+  .pm-item .pm-main b{display:flex; align-items:center; gap:5px; font-size:12.5px; font-weight:900; letter-spacing:-.01em;}
+  .pm-item .pm-main b i{font-style:normal; font-size:8.5px; font-weight:900; letter-spacing:.02em; padding:2px 5px; border-radius:5px; background:var(--brand); color:#fff;}
+  .pm-item .pm-main span{display:block; font-size:10.5px; color:var(--sub); font-weight:600; margin-top:3px; line-height:1.45; word-break:keep-all;}
+  .pm-item .pm-side{flex:0 0 auto; text-align:right;}
+  .pm-item .pm-p{font-size:12.5px; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-.01em;}
+  .pm-item .pm-side button{
+    margin-top:5px; padding:7px 11px; border-radius:9px; background:var(--brand); color:#fff;
+    font-size:11px; font-weight:900; white-space:nowrap;
+  }
+  .pm-item .pm-side button.pending{background:var(--card2); color:var(--sub); border:1px solid var(--line);}
+  .pm-note{padding:10px 15px 13px; font-size:10px; color:var(--sub2); font-weight:600; line-height:1.5; border-top:1px solid var(--line); background:var(--card2);}
+  .pm-sheet .pm-price{font-size:22px; font-weight:900; letter-spacing:-.03em; margin:2px 0 10px;}
+  .pm-sheet .pm-line{display:flex; gap:8px; font-size:12px; font-weight:700; line-height:1.6; color:var(--text);}
+  .pm-sheet .pm-line span:first-child{flex:0 0 auto;}
+  .pm-sheet .pm-open{margin-top:12px; padding:11px 12px; border-radius:12px; background:var(--card2); border:1px solid var(--line); font-size:11.5px; font-weight:700; color:var(--sub); line-height:1.65;}
+  .pm-sheet .pm-trial{
+    width:100%; margin-top:10px; padding:14px 0; border-radius:14px; background:var(--brand); color:#fff;
+    font-size:14px; font-weight:900;
+  }
 </style>
 </head>
 <body>
@@ -1014,6 +1049,7 @@
         <div class="v" id="shopCash">0원</div>
         <div class="s">모의 예수금으로만 결제돼요 · 실제 돈은 오가지 않아요<br>사면 내 집에 배치해 분당 <b>가격의 5%</b> 수익을 받아요<br>수만 원 잡화부터 수백조 원 우주 프로젝트까지 100종</div>
       </div>
+      <div class="bot-box" id="premiumBox"></div>
       <div class="bot-box" id="botBox"></div>
       <div class="chips-row" id="shopChips"></div>
       <div class="shop-tools">
@@ -1304,7 +1340,7 @@ function maybeStartCrash(t){
   if (t < (state.delistLockUntil || 0)) return;          // 청산 쿨다운
   if (t < (state.crashLockUntil || 0)) return;
   if (Math.random() > CRASH_CHANCE) return;
-  const pool = STOCKS.filter(s => (state.prices[s.code] || 0) > s.base * 0.3);
+  const pool = STOCKS.filter(s => !s.hot && (state.prices[s.code] || 0) > s.base * 0.3);   // 급등주는 자체 버스트로 움직인다
   if (pool.length < 2) return;
   startCrash(pool[Math.floor(Math.random() * pool.length)].code, t);
 }
@@ -1485,7 +1521,9 @@ function newState(){
     delistLockUntil: 0,
     delisted: [],         // 최근 상장폐지 이력
     hunger: 100,
-    hungerAt: 0
+    hungerAt: 0,
+    premium: { rumorTickets: 0 },   // 프리미엄 상품으로 받은 무료 엿듣기 횟수
+    boosterUntil: 0                   // 수익 2배 부스터 종료 시각(ms)
   };
 }
 
@@ -1560,6 +1598,8 @@ function load(){
     if (p.ads && typeof p.ads === "object") state.ads = p.ads;
     if (typeof p.hunger === "number") state.hunger = clamp(p.hunger, 0, 100);
     if (typeof p.hungerAt === "number") state.hungerAt = p.hungerAt;
+    if (p.premium && typeof p.premium === "object") state.premium = { rumorTickets: Math.max(0, Math.floor(Number(p.premium.rumorTickets) || 0)) };
+    if (typeof p.boosterUntil === "number" && p.boosterUntil > 0) state.boosterUntil = p.boosterUntil;
     if (typeof p.nextNewsAt === "number") state.nextNewsAt = p.nextNewsAt;
     if (typeof p.nextRumorAt === "number") state.nextRumorAt = p.nextRumorAt;
     if (typeof p.nextIpoAt === "number") state.nextIpoAt = p.nextIpoAt;
@@ -1593,7 +1633,8 @@ function save(force){
       crash: state.crash, crashLockUntil: state.crashLockUntil, relistAt: state.relistAt,
       delistLockUntil: state.delistLockUntil, delisted: state.delisted,
       dynamic: DYN,
-      hunger: state.hunger, hungerAt: state.hungerAt
+      hunger: state.hunger, hungerAt: state.hungerAt,
+      premium: state.premium, boosterUntil: state.boosterUntil
     }));
   } catch(e) {}
   saveTicks(force);
@@ -1653,76 +1694,165 @@ function scheduleRumor(base){ state.nextRumorAt = (base || Date.now()) + nextRum
 /* ---------------- 변동성 엔진 (2026-11-15 2차 상향 · 롤러코스터) ----------------
    틱(1.2초)당 기본 변동폭을 크게 키우고, 종목별 '추세(모멘텀)'와 '급변 구간',
    한 틱짜리 랜덤 스파이크를 더해 차트가 위아래로 크게 출렁이게 한다. */
-const VOL_BOOST = 8.5;              // 기본 변동폭 배율 (1차 2.9 → 8.5)
-const VOL_SPIKE_CHANCE = 0.03;      // 한 틱짜리 랜덤 스파이크 확률
-const VOL_MAX_TICK = 0.22;          // 한 틱 최대 변동(±22%) — 차트가 깨지지 않는 선
+const VOL_BOOST = 8.5;              // 일반주 기본 변동폭 배율
+const VOL_SPIKE_CHANCE = 0.03;      // 한 틱짜리 랜덤 스파이크 확률(일반주)
+const VOL_MAX_TICK = 0.22;          // 일반주 한 틱 최대 변동(±22%) — 차트가 깨지지 않는 선
+const VOL_MAX_TICK_HOT = 0.35;      // 급등주 한 틱 최대 변동(±35%)
 const VOL_REGIME = { chance: 0.09, minTicks: 3, maxTicks: 10, mult: [2.0, 3.6] };
 /* 방향성 추세(랠리/하락) — 몇 틱 동안 한쪽으로 밀어붙인다 */
 const VOL_TREND = { chance: 0.035, min: 3, max: 8, pow: [1.2, 2.4] };
 /* 펌핑 뒤 덤핑(차익실현 폭락) — 연속 상승 뒤 확률적으로 강하게 꺾인다 */
 const VOL_PUMP = { turn: 4.5, chance: 0.26 };
-const VOL_CAP = { normal: 0.06, hot: 0.09 };   // 종목별 기본 변동 상한(급등주는 더 크게)
-/* 기저가 대비 가격 허용 범위 — 상·하한에 붙어 차트가 평평해지지 않게 넉넉히 */
-const PRICE_RANGE = { normal: [0.15, 6.0], hot: [0.1, 10.0] };
+const VOL_CAP = { normal: 0.06, hot: 0.35 };   // 종목별 기본 변동 상한(급등주는 훨씬 크게)
+/* 기저가 대비 가격 허용 범위 — 급등주는 0.02배(98% 폭락)부터 40배까지 */
+const PRICE_RANGE = { normal: [0.15, 6.0], hot: [0.02, 40.0] };
+
+/* 🔥 급등주 전용 롤러코스터 엔진 (2026-11-16)
+   일반주와 같은 엔진을 쓰되 확률·배수·지속시간을 전부 키워, 몇십 초 안에
+   +100% 폭등이나 -50% 반토막이 실제로 자주 나오게 한다. */
+const VOL_HOT = {
+  boost: 1.8,                       // 기본 변동폭 배율 (VOL_BOOST × 1.8)
+  noiseScale: 0.35,                 // 랜덤 잔진동은 조금만 — 나머지는 버스트로 만든다
+  regimeChance: 0.16,               // 급변 구간 진입 확률(일반주 0.09)
+  regimeMult: [2.2, 4.2],
+  trendChance: 0.10,                // 방향성 추세 시작 확률(일반주 0.035)
+  trendMin: 5, trendMax: 14,
+  trendPow: [0.5, 1.1],
+  burstChance: 0.06,                // 폭등/폭락 버스트 시작 확률 — 평균 20초에 한 번
+  burstMin: 5, burstMax: 13,        // 버스트 지속(틱)
+  burstPow: [0.7, 1.4],             // 버스트 중 매 틱 방향 압력(기본 변동성 배수)
+  spikeChance: 0.06,                // 한 틱 스파이크 확률(일반주 0.03)
+  spikeMult: [2.2, 4.0],
+  dumpTurn: 7.0,                    // 펌핑 누적 임계(일반주 4.5) — 랠리를 더 오래 끌고 간 뒤 꺾는다
+  dumpChance: 0.42,
+  dumpPow: [1.6, 2.0],              // 덤핑 한 방(-14%~-31%)
+  deadZone: 0.55,                   // log 편차 ±0.55(약 0.58~1.73배) 밖에서 복원 압력
+  revert: 1.2,                      // 복원 압력 계수
+  revertPow: 1.7                    // 멀어질수록 급격히 세지는 브레이크(비선형)
+};
 const volState = {};                // code -> { mo: 추세, regUntil, regMult }
 function volOf(s){
   let v = volState[s.code];
-  if (!v) v = volState[s.code] = { mo: 0, regUntil: 0, regMult: 1, trendUntil: 0, trendDir: 0, trendPow: 1, pump: 0, dumpUntil: 0 };
+  if (!v) v = volState[s.code] = { mo: 0, regUntil: 0, regMult: 1, trendUntil: 0, trendDir: 0, trendPow: 1, pump: 0, dumpUntil: 0,
+                                   burstUntil: 0, burstStart: 0, burstDir: 0, burstPow: 1, burstLen: 0 };
   return v;
 }
+function maxTickOf(s){ return s.hot ? VOL_MAX_TICK_HOT : VOL_MAX_TICK; }
 function baseVolOf(s){
   const cap = s.hot ? VOL_CAP.hot : VOL_CAP.normal;
-  /* 급등주는 기본 변동성 자체가 커서 배율을 조금 덜어 준다(여전히 일반주의 2~3배) */
-  const boost = s.hot ? VOL_BOOST * 0.72 : VOL_BOOST;
+  /* 급등주는 기본 변동성 자체를 크게 키운다(일반주의 3~5배) */
+  const boost = s.hot ? VOL_BOOST * VOL_HOT.boost : VOL_BOOST;
   return Math.min(s.vol * boost, cap);
 }
 function priceFloor(s){ const r = s.hot ? PRICE_RANGE.hot : PRICE_RANGE.normal; return Math.max(1, Math.round(s.base * r[0])); }
 function priceCeil(s){ const r = s.hot ? PRICE_RANGE.hot : PRICE_RANGE.normal; return Math.max(100, Math.round(s.base * r[1])); }
 function safePx(p, fallback){ return (typeof p === "number" && isFinite(p) && p > 0) ? p : fallback; }
-function tickShock(s, t){
+function tickShock(s, t, prev){
   const v = volOf(s);
-  /* 급변 구간: 가끔 3~9틱 동안 변동폭이 2~4배로 터진다 */
-  if (t >= v.regUntil && Math.random() < VOL_REGIME.chance){
+  const hot = !!s.hot;
+  const bv = baseVolOf(s);
+  const maxTick = maxTickOf(s);
+
+  /* 급변 구간: 가끔 몇 틱 동안 변동폭이 2~4배로 터진다 */
+  if (t >= v.regUntil && Math.random() < (hot ? VOL_HOT.regimeChance : VOL_REGIME.chance)){
     v.regUntil = t + (VOL_REGIME.minTicks + Math.random() * (VOL_REGIME.maxTicks - VOL_REGIME.minTicks)) * TICK_MS;
-    v.regMult = VOL_REGIME.mult[0] + Math.random() * (VOL_REGIME.mult[1] - VOL_REGIME.mult[0]);
+    const rm = hot ? VOL_HOT.regimeMult : VOL_REGIME.mult;
+    v.regMult = rm[0] + Math.random() * (rm[1] - rm[0]);
   }
   const regMult = t < v.regUntil ? v.regMult : 1;
-  const bv = baseVolOf(s);
-  let shock = gauss() * bv * regMult;
+  let shock = gauss() * bv * (hot ? VOL_HOT.noiseScale : 1) * regMult;
 
   /* 방향성 추세(랠리/하락): 몇 틱 동안 한쪽으로 밀어붙이되 잔진동은 남긴다 */
-  if (t >= v.trendUntil && Math.random() < VOL_TREND.chance){
+  if (t >= v.trendUntil && Math.random() < (hot ? VOL_HOT.trendChance : VOL_TREND.chance)){
     v.trendDir = Math.random() < 0.5 ? 1 : -1;
-    v.trendUntil = t + (VOL_TREND.min + Math.random() * (VOL_TREND.max - VOL_TREND.min)) * TICK_MS;
-    v.trendPow = VOL_TREND.pow[0] + Math.random() * (VOL_TREND.pow[1] - VOL_TREND.pow[0]);
+    const tmin = hot ? VOL_HOT.trendMin : VOL_TREND.min;
+    const tmax = hot ? VOL_HOT.trendMax : VOL_TREND.max;
+    v.trendUntil = t + (tmin + Math.random() * (tmax - tmin)) * TICK_MS;
+    const pw = hot ? VOL_HOT.trendPow : VOL_TREND.pow;
+    v.trendPow = pw[0] + Math.random() * (pw[1] - pw[0]);
   }
-  if (t < v.trendUntil && v.trendDir) shock += bv * v.trendDir * v.trendPow;
+  if (t < v.trendUntil && v.trendDir && !(hot && t < (v.burstUntil || 0))) shock += bv * v.trendDir * v.trendPow;
 
-  if (Math.random() < VOL_SPIKE_CHANCE) shock *= 3.5 + Math.random() * 3.0;      // 순간 급등/급락(3.5~6.5배)
-  if (s.hot && Math.random() < 0.06) shock *= (Math.random() < 0.6 ? 2.8 : 2.3); // 급등주 랠리
+  /* 🔥 급등주 폭등/폭락 버스트 — 방향을 정해 몇 틱 내리 밀어붙인다 */
+  if (hot){
+    if (t >= (v.burstUntil || 0) && Math.random() < VOL_HOT.burstChance){
+      v.burstDir = Math.random() < 0.5 ? 1 : -1;
+      v.burstLen = VOL_HOT.burstMin + Math.random() * (VOL_HOT.burstMax - VOL_HOT.burstMin);
+      v.burstStart = t;
+      v.burstUntil = t + v.burstLen * TICK_MS;
+      v.burstPow = VOL_HOT.burstPow[0] + Math.random() * (VOL_HOT.burstPow[1] - VOL_HOT.burstPow[0]);
+      /* 버스트가 시작되면 추세도 같은 방향으로 붙여 준다 */
+      v.trendDir = v.burstDir;
+      v.trendUntil = v.burstUntil;
+      v.trendPow = Math.max(v.trendPow || 1, 0.8);
+    }
+    if (t < (v.burstUntil || 0) && v.burstDir){
+      const span = Math.max(TICK_MS, v.burstUntil - (v.burstStart || t));
+      const prog = clamp((t - (v.burstStart || t)) / span, 0, 1);
+      shock += bv * v.burstDir * v.burstPow * (1 - prog * 0.35);   // 갈수록 살짝 약해진다
+    }
+  }
+
+  /* 한 틱짜리 랜덤 스파이크 — 일반주 3.5~6.5배, 급등주 2.6~5.0배 */
+  if (Math.random() < (hot ? VOL_HOT.spikeChance : VOL_SPIKE_CHANCE)){
+    const sm = hot ? VOL_HOT.spikeMult : [3.5, 6.5];
+    shock *= sm[0] + Math.random() * (sm[1] - sm[0]);
+  }
 
   /* 펌핑 뒤 덤핑 / 덤핑 뒤 반등 — 오르다 고점에서 시원하게 꺾인다 */
+  const pumpTurn = hot ? VOL_HOT.dumpTurn : VOL_PUMP.turn;
+  const pumpChance = hot ? VOL_HOT.dumpChance : VOL_PUMP.chance;
+  const dumpPow = hot ? VOL_HOT.dumpPow : [2.2, 1.8];    // 덤핑 한 방 [기본, 랜덤폭] — 일반주 -3~-8%
+  const jumpPow = hot ? VOL_HOT.dumpPow : [2.0, 1.6];    // 반등 한 방
   v.pump = (v.pump || 0) * 0.8 + shock / bv;        // bv 단위로 누적
   if (t >= (v.dumpUntil || 0)){
-    if (v.pump > VOL_PUMP.turn && Math.random() < VOL_PUMP.chance){
+    if (v.pump > pumpTurn && Math.random() < pumpChance){
       v.trendDir = -1;
-      v.trendUntil = t + (3 + Math.random() * 4) * TICK_MS;
-      v.trendPow = VOL_TREND.pow[1];
+      v.trendUntil = t + (hot ? 4 + Math.random() * 4 : 3 + Math.random() * 4) * TICK_MS;
+      v.trendPow = hot ? 0.7 : VOL_TREND.pow[1];
       v.mo = -bv * 3.2;
-      shock = -bv * (2.2 + Math.random() * 1.8) - Math.abs(gauss() * bv);   // -3~-8% 한 방
+      v.burstUntil = 0;                                   // 랠리 버스트는 즉시 접는다
+      shock = -bv * (dumpPow[0] + Math.random() * dumpPow[1]) - Math.abs(gauss() * bv);
       v.pump = 0; v.dumpUntil = t + 8 * TICK_MS;
-    } else if (v.pump < -VOL_PUMP.turn && Math.random() < VOL_PUMP.chance * 0.8){
+    } else if (v.pump < -pumpTurn && Math.random() < pumpChance * 0.85){
       v.trendDir = 1;
-      v.trendUntil = t + (3 + Math.random() * 4) * TICK_MS;
-      v.trendPow = VOL_TREND.pow[1];
+      v.trendUntil = t + (hot ? 4 + Math.random() * 4 : 3 + Math.random() * 4) * TICK_MS;
+      v.trendPow = hot ? 0.7 : VOL_TREND.pow[1];
       v.mo = bv * 3.2;
-      shock = bv * (2.0 + Math.random() * 1.6) + Math.abs(gauss() * bv);
+      v.burstUntil = 0;
+      shock = bv * (jumpPow[0] + Math.random() * jumpPow[1]) + Math.abs(gauss() * bv);
       v.pump = 0; v.dumpUntil = t + 8 * TICK_MS;
     }
   }
+
+  /* 🔥 급등주 과열/침체 복원 — 바닥·천장에서 튕겨 롤러코스터가 계속 이어지게 한다.
+     log 편차가 데드존(±0.55 ≈ 0.58~1.73배)을 넘어설수록 비선형으로 세게 밀어 준다. */
+  if (hot && typeof prev === "number" && prev > 0){
+    const dev = Math.log(prev / s.base);
+    const ex = Math.abs(dev) - VOL_HOT.deadZone;
+    if (ex > 0){
+      const brake = Math.min(bv * 1.0, bv * Math.pow(ex, VOL_HOT.revertPow) * VOL_HOT.revert);   // 한 틱 브레이크 상한(±8.6%)
+      shock -= (dev > 0 ? 1 : -1) * brake;
+    }
+  }
+
+  /* 🔥 급등주 소프트 바닥/천장 — 0.2배 아래로는 더 밀리지 않고, 5배 위로는 더 오르지 않는다.
+     (하드 한도는 PRICE_RANGE 그대로 두고, 그 전에 슬그머니 방향을 틀어 준다) */
+  if (hot && typeof prev === "number" && prev > 0){
+    const ratio = prev / s.base;
+    if (ratio < 0.20 && shock < 0){
+      const depth = clamp((0.20 - ratio) / 0.18, 0, 1);
+      shock = shock * (1 - 0.9 * depth) + bv * 0.5 * depth;
+    } else if (ratio > 5 && shock > 0){
+      const depth = clamp((ratio - 5) / 35, 0, 1);
+      shock = shock * (1 - 0.9 * depth) - bv * 0.4 * depth;
+    }
+  }
+
   /* 추세(모멘텀): 최근 흐름이 몇 틱 이어져 차트에 파도가 생긴다 */
-  v.mo = clamp(v.mo * 0.84 + shock * 0.5, -bv * 3.2, bv * 3.2);
-  return clamp(shock + v.mo * 0.30, -VOL_MAX_TICK, VOL_MAX_TICK);
+  const moCap = hot ? bv * 1.8 : bv * 3.2;
+  v.mo = clamp(v.mo * 0.84 + shock * 0.5, -moCap, moCap);
+  return clamp(shock + v.mo * (hot ? 0.22 : 0.30), -maxTick, maxTick);
 }
 /* 차트 포인트 추가는 이 함수로만 — 타임스탬프는 항상 이전 점보다 크게 보장한다.
    (앱 복귀·오프라인 따라잡기·복원이 겹쳐도 X좌표가 뒤로 꺾이지 않게) */
@@ -1745,16 +1875,21 @@ function seedTicks(code, price){
   const now = Date.now();
   const s = BY_CODE[code];
   const arr = [];
-  const bv = baseVolOf(s);
+  const hot = !!s.hot;
+  /* 급등주 시드 히스토리는 실제 호가보다 차분하게 — 0.25~3.5배 범위의 파동만 그린다 */
+  const bv = baseVolOf(s) * (hot ? 0.5 : 1);
+  const mt = maxTickOf(s) * (hot ? 0.7 : 1);
+  const seedLo = hot ? Math.max(priceFloor(s), Math.round(s.base * 0.25)) : priceFloor(s);
+  const seedHi = hot ? Math.min(priceCeil(s), Math.round(s.base * 3.5)) : priceCeil(s);
   const anchor = safePx(price, snap(s.base));
   let p = anchor;
   for (let i = 0; i < 420; i++){
     arr.push({t: now - i * TICK_MS, p: snap(p)});
-    const pull = ((s.base - p) / s.base) * 0.05;            // 기저가에서 너무 멀어지지 않게
-    const step = clamp(gauss() * bv * 0.85 + pull, -VOL_MAX_TICK, VOL_MAX_TICK);
+    const pull = ((s.base - p) / s.base) * (hot ? 0.12 : 0.05);   // 기저가에서 너무 멀어지지 않게
+    const step = clamp(gauss() * bv * 0.85 + pull, -mt, mt);
     p = p / (1 + step);
     if (!isFinite(p) || p <= 0) p = anchor;
-    p = clamp(p, priceFloor(s), priceCeil(s));
+    p = clamp(p, seedLo, seedHi);
   }
   arr.reverse();
   return arr;
@@ -1804,12 +1939,12 @@ function stepMarket(t, ui){
     /* 대폭락 중인 종목은 매도세가 밀어붙인다(차트가 계단처럼 무너진다) */
     const isCrash = !!(state.crash && state.crash.code === s.code && t < state.crash.until);
     const crashDrift = isCrash ? -(0.10 + Math.random() * 0.07) : 0;
-    const kRef = s.hot ? 0.06 : 0.03;   // 기저가로 되돌리는 힘(급등주는 더 세게 — 추세가 폭주하지 않게)
+    const kRef = s.hot ? 0.015 : 0.03;  // 기저가로 되돌리는 힘(급등주는 약하게 — 큰 파동이 오래 이어지게)
     const drift = ((s.base - prev) / s.base) * kRef + crashDrift + (ch ? (ch.kind === "crash" ? -0.0020 : 0.0013) : 0);
     /* 상장 직후 22초는 상장 버프(높은 변동성) */
     const ipoBuff = s.dyn ? ((t - (s.listedAt || 0)) < 22000 ? 1.6 : 1) : 1;
     const chMult = ch ? (ch.kind === "crash" ? 1.7 : 1.25) : 1;
-    let shock = tickShock(s, t) * chMult * ipoBuff * (isCrash ? 1.7 : 1);
+    let shock = tickShock(s, t, prev) * chMult * ipoBuff * (isCrash ? 1.7 : 1);
     let next = snap(prev * (1 + drift + shock));
     /* 폭락 중에는 상장폐지선(기준가의 12%) 아래까지 내려갈 수 있게 바닥을 열어 둔다 */
     const loPx = Math.max(kTick(prev), isCrash ? Math.round(s.base * 0.05) : priceFloor(s));
@@ -1831,7 +1966,8 @@ function stepMarket(t, ui){
 
   /* --- 상장폐지 판정: 한 번에 한 종목만 (쿨다운·대체 상장 대기 중엔 없음) --- */
   if (!state.relistAt && t >= (state.delistLockUntil || 0)){
-    const dying = STOCKS.filter(x => (state.prices[x.code] || 0) > 0 && state.prices[x.code] <= x.base * DELIST_RATIO);
+    /* 급등주는 상장폐지 대상에서 뺀다 — 대신 바닥(기준가의 2%)에서 튕겨 계속 롤러코스터를 탄다 */
+    const dying = STOCKS.filter(x => !x.hot && (state.prices[x.code] || 0) > 0 && state.prices[x.code] <= x.base * DELIST_RATIO);
     if (dying.length){
       const victim = dying[Math.floor(Math.random() * dying.length)];
       delistStock(victim.code, t);
@@ -2491,8 +2627,10 @@ function updateHomeLive(){
   const hp = $("#homePassive");
   if (hp){
     const pm = economyPerMin();
-    hp.textContent = pm > 0 ? ("💰 패시브 +" + fmt(pm) + "원/분") : "";
+    const bt = boosterActive() ? " · ⚡2배 " + boosterClock() : "";
+    hp.textContent = pm > 0 ? ("💰 패시브 +" + fmt(pm) + "원/분" + bt) : (boosterActive() ? "⚡ 수익 2배 부스터 " + boosterClock() + " 남음" : "");
   }
+  updateBoostBadge();
   if (sub) sub.innerHTML = '<span class="' + cls(pl) + '">' + signed(pl) + '원 (' + pctStr(r) + ')</span><span style="color:var(--sub2)">· 총 수익률</span>';
 
   // rows
@@ -2565,7 +2703,7 @@ function updateInvestLive(){
   $("#invCash").textContent = won(state.cash);
   $("#invStock").textContent = won(ev);
   const ipv = $("#invPos"); if (ipv) ipv.textContent = won(posEquity());
-  const ipass = $("#invPassive"); if (ipass) ipass.textContent = fmt(passivePerSec() * 60) + "원/분";
+  const ipass = $("#invPassive"); if (ipass) ipass.textContent = fmt(passivePerSec() * 60) + "원/분" + (boosterActive() ? " ⚡2배" : "");
   const ibots = $("#invBots"); if (ibots) ibots.textContent = fmt(botPerSec() * 60) + "원/분";
   $("#invCost").textContent = won(cost);
   $("#invDeposit").textContent = won(state.deposited);
@@ -2878,12 +3016,14 @@ function execOrder(){
     h.qty -= q;
     const total = q * p;
     const fee = feeAmount(total, "sell");
-    state.cash += total - fee;
+    /* ⚡ 수익 2배 부스터 — 차익(이익) 부분만 2배로 더 준다 */
+    const boost = (profit > 0 && boosterActive()) ? Math.round(profit * (boostMul() - 1)) : 0;
+    state.cash += total - fee + boost;
     if (h.qty <= 0) delete state.holdings[code];
     pushTrade({ code, side: "sell", qty: q, price: p, total, fee });
     unlock("first");
     if (profit > 0) unlock("profit");
-    toast(s.name + " " + fmt(q) + "주 매도 체결 · 수수료 " + won(fee));
+    toast(s.name + " " + fmt(q) + "주 매도 체결 · 수수료 " + won(fee) + (boost > 0 ? " · ⚡ 부스터 +" + won(boost) : ""));
   }
   finishOrder();
 }
@@ -2941,27 +3081,43 @@ window.moeigamiBack = function(){
 function closeSheet(){ $("#scrim").classList.remove("show"); $("#sheet").innerHTML = ""; }
 
 /* 계좌 초기화 횟수 — localStorage에 따로 남겨 초기화해도 사용 횟수는 지워지지 않는다 */
+const BONUS_RESET_KEY = "moeigami_bonus_reset_v1";   // 프리미엄 상품으로 받은 추가 초기화 횟수
+function bonusResetOf(){
+  try {
+    const v = parseInt(localStorage.getItem(BONUS_RESET_KEY) || "0", 10);
+    if (!isFinite(v) || v <= 0) return 0;
+    return Math.min(v, 50);
+  } catch(e){ return 0; }
+}
+function addBonusReset(n){
+  const add = Math.max(0, Math.floor(Number(n) || 0));
+  if (!add) return 0;
+  try { localStorage.setItem(BONUS_RESET_KEY, String(bonusResetOf() + add)); } catch(e) {}
+  return bonusResetOf();
+}
+function resetMax(){ return RESET_MAX + bonusResetOf(); }
 function resetCountOf(){
   try {
     const v = parseInt(localStorage.getItem(RESET_COUNT_KEY) || "0", 10);
     if (!isFinite(v) || v <= 0) return 0;
-    return Math.min(v, RESET_MAX);
+    return Math.min(v, resetMax());
   } catch(e){ return 0; }
 }
-function resetLeft(){ return Math.max(0, RESET_MAX - resetCountOf()); }
+function resetLeft(){ return Math.max(0, resetMax() - resetCountOf()); }
 function isResetBroke(){ return totalAsset() < RESET_BROKE_LIMIT; }
 function canResetAccount(){ return resetLeft() > 0 && isResetBroke(); }
 function updateResetButton(){
   const b = $("#resetBtn");
   const left = resetLeft();
+  const max = resetMax();
   if (b){
-    b.textContent = "계좌 초기화 (남은 횟수 " + left + "/" + RESET_MAX + ")";
+    b.textContent = "계좌 초기화 (남은 횟수 " + left + "/" + max + ")";
     b.classList.toggle("off", !canResetAccount());
   }
   const hint = $("#resetHint");
   if (hint){
     hint.textContent = left <= 0
-      ? "계좌 초기화 횟수를 모두 사용했어요 (" + RESET_MAX + "/" + RESET_MAX + ")"
+      ? "계좌 초기화 횟수를 모두 사용했어요 (" + max + "/" + max + ")"
       : (isResetBroke()
         ? "지금 초기화하면 예수금 1,000만원으로 복구돼요"
         : "돈이 부족할 때만 초기화할 수 있어요 · 총자산 " + fmt(RESET_BROKE_LIMIT) + "원 미만");
@@ -2970,19 +3126,19 @@ function updateResetButton(){
 
 function openReset(){
   if (resetLeft() <= 0){
-    toast("계좌 초기화 횟수를 모두 사용했어요 (" + RESET_MAX + "/" + RESET_MAX + ")");
+    toast("계좌 초기화 횟수를 모두 사용했어요 (" + resetMax() + "/" + resetMax() + ")");
     return;
   }
   if (!isResetBroke()){
     toast("돈이 부족할 때만 계좌를 초기화할 수 있어요");
     return;
   }
-  const left = resetLeft();
+  const left = resetLeft(), max = resetMax();
   $("#sheet").innerHTML =
     '<h3>계좌 초기화</h3>'
     + '<p>보유 종목과 거래내역이 모두 사라지고<br>예수금이 1,000만원으로 돌아가요.</p>'
-    + '<p style="margin-top:-6px;font-size:12px;font-weight:700;color:var(--sub2)">남은 초기화 횟수 ' + left + '회 / ' + RESET_MAX + '회</p>'
-    + '<button class="go danger" id="resetGo">초기화하기 (남은 ' + left + '/' + RESET_MAX + ')</button>'
+    + '<p style="margin-top:-6px;font-size:12px;font-weight:700;color:var(--sub2)">남은 초기화 횟수 ' + left + '회 / ' + max + '회</p>'
+    + '<button class="go danger" id="resetGo">초기화하기 (남은 ' + left + '/' + max + ')</button>'
     + '<button class="cancel" id="sheetCancel">닫기</button>';
   $("#scrim").classList.add("show");
 }
@@ -3192,8 +3348,9 @@ function renderRumorButton(){
   const btn = $("#rumorBtn");
   if (!btn) return;
   const cost = rumorCost();
-  btn.textContent = "+ 소문 엿듣기 (" + shortWon(cost) + ")";
-  const poor = (state.cash || 0) < cost;
+  const tk = premiumState().rumorTickets;
+  btn.textContent = tk > 0 ? "+ 소문 엿듣기 (무료 " + tk + "회)" : "+ 소문 엿듣기 (" + shortWon(cost) + ")";
+  const poor = tk <= 0 && (state.cash || 0) < cost;
   btn.style.opacity = poor ? ".45" : "1";
   btn.setAttribute("data-poor", poor ? "1" : "0");
 }
@@ -3204,6 +3361,19 @@ function buyRumor(){
     return null;   // 중복 결제 방지
   }
   const cost = rumorCost();
+  /* 🎟️ 프리미엄 팩으로 받은 무료 엿듣기권이 있으면 먼저 쓴다 */
+  const tk = premiumState().rumorTickets;
+  if (tk > 0){
+    premiumState().rumorTickets = tk - 1;
+    const rr = spawnRumor(true);
+    if (!rr){ premiumState().rumorTickets = tk; toast("지금은 엿들을 소문이 없어요"); return null; }
+    noteInput();
+    renderRumorButton(); renderHome(); updateHomeLive();
+    if (detailCode) { updateDetailLive(); if (activeTab === "invest") renderInvest(); }
+    save(true);
+    toast("🎟️ 무료 엿듣기 사용 · 남은 " + premiumState().rumorTickets + "회");
+    return rr;
+  }
   if ((state.cash || 0) < cost){
     toast("현금이 부족해요 · 정보료 " + won(cost));
     return null;
@@ -3422,7 +3592,9 @@ function closePosition(id, reason){
   const pnl = clamp(p.margin * p.lev * ((exit - p.entry) / p.entry) * dir, -p.margin, p.margin * 30);
   const fee = feeAmount(p.qty * exit, "sell");   // 청산(매도) 수수료 0.15%
   const back = Math.max(0, Math.round(p.margin + pnl - fee));
-  state.cash += back;
+  /* ⚡ 수익 2배 부스터 — 이익이 난 청산의 차익 부분만 2배 */
+  const boost = (reason !== "liq" && pnl > 0 && boosterActive()) ? Math.round(pnl * (boostMul() - 1)) : 0;
+  state.cash += back + boost;
   state.positions.splice(i, 1);
   pushTrade({ code: p.code, side: "close", qty: p.qty, price: Math.round(exit), total: Math.round(pnl), lev: p.lev, fee, kind: reason || "close" });
   if (reason === "liq"){
@@ -3900,6 +4072,7 @@ function switchShopView(v){
 function renderShop(){
   const cashEl = $("#shopCash");
   if (cashEl) cashEl.textContent = bigWon(state.cash);
+  renderPremium();
   const chips = $("#shopChips");
   if (chips && !chips.dataset.bound){
     chips.dataset.bound = "1";
@@ -3945,6 +4118,143 @@ function shopCard(it){
     + '<button data-buy="' + it.id + '" class="' + (can ? "" : "owned") + '">' + (own ? "한 개 더" : "구매") + '</button>'
     + '</div>';
 }
+/* ---------------- 💎 프리미엄 상점 (정식 인앱결제 오픈 전 준비 UI) ----------------
+   실제 결제는 사업자 등록 + 콘솔 SKU 등록 후 브릿지의 IAP_READY를 켜면 열린다.
+   그 전에는 "오픈 예정"만 안내하고, 부스터 상품만 광고 10분 무료 체험을 제공한다.
+   (결제가 된 것처럼 보이게 하지 않는다 — 지금은 어떤 금액도 청구되지 않는다) */
+const PREMIUM = [
+  { id: "p_blood",  sku: "moeigami.blood.1100",  e: "💉", n: "긴급 수혈팩", tag: "", price: 1100,
+    d: "계좌 초기화 1회 추가 + 시드 1,000만원",
+    grant: { resetCredits: 1, seed: 10000000 } },
+  { id: "p_boost3", sku: "moeigami.boost.3300",  e: "⚡", n: "3시간 수익 2배 부스터", tag: "인기", price: 3300,
+    d: "매도 차익·패시브 수익 2배(3시간) + 시드 5,000만원",
+    grant: { boosterMs: 3 * 60 * 60 * 1000, seed: 50000000 }, trialMs: 10 * 60 * 1000 },
+  { id: "p_power",  sku: "moeigami.power.5500",  e: "🎯", n: "작전 세력 팩", tag: "", price: 5500,
+    d: "시드 5억원 + 소문 엿듣기 무료 3회권",
+    grant: { seed: 500000000, rumorTickets: 3 } },
+  { id: "p_escape", sku: "moeigami.escape.11000", e: "🚀", n: "개미 탈출 풀팩", tag: "풀팩", price: 11000,
+    d: "시드 50억원 + 24시간 수익 2배 부스터",
+    grant: { seed: 5000000000, boosterMs: 24 * 60 * 60 * 1000 }, trialMs: 10 * 60 * 1000 }
+];
+const PREMIUM_BY_ID = {};
+PREMIUM.forEach(p => PREMIUM_BY_ID[p.id] = p);
+const PREMIUM_TRIAL_MS = 10 * 60 * 1000;   // 광고 체험 10분
+
+function premiumState(){
+  if (!state.premium || typeof state.premium !== "object") state.premium = { rumorTickets: 0 };
+  if (!(state.premium.rumorTickets > 0)) state.premium.rumorTickets = 0;
+  return state.premium;
+}
+function boosterActive(){ return (state.boosterUntil || 0) > Date.now(); }
+function boostMul(){ return boosterActive() ? 2 : 1; }
+function boosterLeftMs(){ return Math.max(0, (state.boosterUntil || 0) - Date.now()); }
+function boosterClock(){
+  let s = Math.ceil(boosterLeftMs() / 1000);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+  return (h > 0 ? h + ":" + String(m).padStart(2, "0") : String(m)) + ":" + String(ss).padStart(2, "0");
+}
+/* 상점 배지의 남은 시간은 틱마다 가볍게 갱신한다 */
+function updateBoostBadge(){
+  const el = $("#boostBadge");
+  if (!el) return;
+  const on = boosterActive();
+  el.classList.toggle("off", !on);
+  const txt = "⚡ 수익 2배 " + (on ? boosterClock() : "");
+  if (el.textContent !== txt) el.textContent = txt;
+}
+function grantBooster(ms){
+  if (!(ms > 0)) return 0;
+  state.boosterUntil = Math.max(Date.now(), state.boosterUntil || 0) + ms;
+  save(true);
+  renderPremium();
+  return state.boosterUntil;
+}
+function renderPremium(){
+  const box = $("#premiumBox");
+  if (!box) return;
+  const active = boosterActive();
+  const tk = premiumState().rumorTickets;
+  box.innerHTML =
+    '<div class="premium-head"><div class="pt"><b>💎 프리미엄 상점</b>'
+    + '<span>실결제 상품 준비 중 · 지금은 부스터만 광고로 미리 체험할 수 있어요'
+    + (tk > 0 ? ' · 🎟️ 무료 엿듣기 ' + tk + '회 보유' : '') + '</span></div>'
+    + '<span class="boost-badge' + (active ? '' : ' off') + '" id="boostBadge">⚡ 수익 2배 ' + (active ? boosterClock() : '') + '</span></div>'
+    + PREMIUM.map(p =>
+        '<div class="pm-item"><div class="pm-e">' + p.e + '</div>'
+        + '<div class="pm-main"><b>' + p.n + (p.tag ? ' <i>' + p.tag + '</i>' : '') + '</b>'
+        + '<span>' + p.d + '</span></div>'
+        + '<div class="pm-side"><div class="pm-p">' + p.price.toLocaleString("ko-KR") + '원</div>'
+        + '<button class="pending" data-premium="' + p.id + '">준비 중</button></div></div>').join("")
+    + '<div class="pm-note">· 정식 결제는 사업자 등록 완료 후 오픈 예정이에요. 지금은 결제되지 않습니다.<br>'
+    + '· ⚡ 부스터 상품은 광고를 끝까지 보면 10분 무료 체험돼요.</div>';
+}
+function premiumGrantLines(p){
+  const g = p.grant || {}, lines = [];
+  if (g.seed) lines.push("시드 " + shortWon(g.seed) + "원");
+  if (g.boosterMs) lines.push("수익 2배 부스터 " + Math.round(g.boosterMs / 3600000) + "시간");
+  if (g.rumorTickets) lines.push("소문 엿듣기 무료 " + g.rumorTickets + "회권");
+  if (g.resetCredits) lines.push("계좌 초기화 " + g.resetCredits + "회 추가");
+  return lines;
+}
+function openPremiumSheet(id){
+  const p = PREMIUM_BY_ID[id];
+  if (!p) return;
+  const canTrial = !!(p.trialMs && !boosterActive());
+  $("#sheet").innerHTML =
+    '<div class="pm-sheet"><h3>' + p.e + ' ' + p.n + '</h3>'
+    + '<div class="pm-price">' + p.price.toLocaleString("ko-KR") + '원</div>'
+    + premiumGrantLines(p).map(l => '<div class="pm-line"><span>·</span><span>' + l + '</span></div>').join("")
+    + '<div class="pm-open">💎 <b>사업자 등록 완료 후 정식 결제 오픈 예정!</b><br>'
+    + '지금은 결제가 진행되지 않아요. 금액이 청구되지 않고 아이템도 지급되지 않습니다.</div>'
+    + (canTrial ? '<button class="pm-trial" id="premTrial" data-trial="' + p.id + '">📺 광고 보고 10분 무료 체험</button>' : '')
+    + (p.trialMs && boosterActive() ? '<div class="pm-open" style="margin-top:10px">⚡ 이미 2배 부스터가 켜져 있어요 · ' + boosterClock() + ' 남음</div>' : '')
+    + '<button class="cancel" id="sheetCancel">닫기</button></div>';
+  $("#scrim").classList.add("show");
+  noteInput();
+}
+function grantPremiumTrial(id){
+  grantBooster(PREMIUM_TRIAL_MS);
+  trackEvent("premium_trial_started", { id });
+  closeSheet();
+  renderPremium(); renderShop(); updateHomeLive(); updateInvestLive();
+  toast("⚡ 수익 2배 부스터 10분 체험 시작 · " + boosterClock() + " 남음");
+}
+function startPremiumTrial(id){
+  const p = PREMIUM_BY_ID[id];
+  if (!p) return;
+  if (!p.trialMs){ toast("이 상품은 정식 오픈 후 이용할 수 있어요"); return; }
+  if (boosterActive()){ toast("이미 부스터가 켜져 있어요 · " + boosterClock() + " 남음"); return; }
+  requestRewardedAd(() => grantPremiumTrial(id));
+}
+/* 실제 결제 후 지급 — 브릿지의 processProductGrant에서만 호출된다 */
+function grantPremium(id, orderId){
+  const p = PREMIUM_BY_ID[id];
+  if (!p) return false;
+  const g = p.grant || {};
+  if (g.seed){ state.cash += g.seed; state.deposited += g.seed; }
+  if (g.boosterMs) grantBooster(g.boosterMs);
+  if (g.rumorTickets) premiumState().rumorTickets += g.rumorTickets;
+  if (g.resetCredits) addBonusReset(g.resetCredits);
+  save(true);
+  renderPremium(); renderShop(); updateHomeLive(); updateInvestLive(); renderRumorButton(); updateResetButton();
+  trackEvent("premium_purchase", { id, order_id: String(orderId || "") });
+  toast("💎 " + p.n + " 지급 완료");
+  return true;
+}
+function purchasePremium(id){
+  const p = PREMIUM_BY_ID[id];
+  if (!p) return;
+  const bridge = window.MOEIGAMI_IAP;
+  if (bridge && bridge.ready === true && typeof bridge.isSupported === "function" && bridge.isSupported()){
+    toast("💳 결제창을 여는 중이에요");
+    Promise.resolve(bridge.purchase({ sku: p.sku, onGrant: (orderId) => grantPremium(id, orderId) }))
+      .then(res => { if (!res || res.status !== "success") toast("결제가 완료되지 않았어요"); })
+      .catch(() => toast("결제를 진행하지 못했어요. 잠시 후 다시 시도해 주세요."));
+    return;
+  }
+  openPremiumSheet(id);
+}
+
 function renderColl(){
   const box = $("#collList");
   if (!box) return;
@@ -4499,7 +4809,8 @@ function payEconomy(dtSec){
   if (ECON_PAUSE) return 0;
   if (state.challenge) return 0;
   if (state.hunger != null && state.hunger <= 0) return 0;
-  const gain = (passivePerSec() + botPerSec()) * dtSec;
+  /* ⚡ 수익 2배 부스터 — 패시브 수익도 2배 */
+  const gain = (passivePerSec() + botPerSec()) * dtSec * boostMul();
   if (gain <= 0) return 0;
   state.cash += gain;
   state.earned = (state.earned || 0) + gain;
@@ -4838,6 +5149,11 @@ function bind(){
     const b = e.target.closest("[data-buy]");
     if (b) buyItem(b.dataset.buy);
   });
+  const pb = $("#premiumBox");
+  if (pb) pb.addEventListener("click", e => {
+    const b = e.target.closest("[data-premium]");
+    if (b) purchasePremium(b.dataset.premium);
+  });
 
   // 게임: 챌린지
   const cb = $("#chalBody");
@@ -4955,6 +5271,11 @@ function bind(){
       addFriendByCode(box ? box.value : "");
       return;
     }
+    if (e.target.id === "premTrial"){
+      const tr = e.target.closest("[data-trial]");
+      startPremiumTrial(tr ? tr.dataset.trial : "");
+      return;
+    }
     if (e.target.id === "sheetCancel") closeSheet();
     if (e.target.id === "chalAgain"){ closeSheet(); showScreen("challenge"); }
   });
@@ -5060,7 +5381,7 @@ function bind(){
 
 function resetAccount(){
   if (!canResetAccount()){ openReset(); return; }   // 돈이 있거나 횟수를 다 쓴 경우엔 실행 금지
-  const used = Math.min(RESET_MAX, resetCountOf() + 1);
+  const used = Math.min(resetMax(), resetCountOf() + 1);
   try { localStorage.setItem(RESET_COUNT_KEY, String(used)); } catch(e) {}   // 횟수 기록은 초기화와 함께 지우지 않는다
   const theme = state.theme;
   const nick = state.nick;
@@ -5082,7 +5403,7 @@ function resetAccount(){
   renderHome(); renderInvest(); renderHistory(); renderRank(); renderShop(); renderChallenge();
   updateHomeLive(); updateChallengeBar();
   if ($("#screen-detail").classList.contains("active")) showScreen("home");
-  toast("계좌를 초기화했어요 · 예수금 1,000만원 (남은 횟수 " + resetLeft() + "/" + RESET_MAX + ")");
+  toast("계좌를 초기화했어요 · 예수금 1,000만원 (남은 횟수 " + resetLeft() + "/" + resetMax() + ")");
 }
 
 /* ---------------- 부팅 ---------------- */
