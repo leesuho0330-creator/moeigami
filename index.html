@@ -5386,6 +5386,8 @@ function resetAccount(){
   const theme = state.theme;
   const nick = state.nick;
   const keepFriends = state.friends, keepGuests = state.guests, keepLikes = state.likes, keepMine = state.likeMine;
+  /* 실제 결제로 받은 프리미엄 혜택(부스터 잔여 시간·무료 엿듣기권)은 초기화해도 유지한다 */
+  const keepBooster = state.boosterUntil, keepPremium = state.premium;
   DYN.forEach(d => retireStock(d.code, Date.now()));
   DYN = [];
   state = newState();
@@ -5395,6 +5397,8 @@ function resetAccount(){
   state.guests = keepGuests || {};
   state.likes = keepLikes || {};
   state.likeMine = keepMine || {};
+  state.boosterUntil = keepBooster || 0;
+  state.premium = keepPremium || { rumorTickets: 0 };
   ticks = {};
   try { localStorage.removeItem(TICK_KEY); } catch(e) {}
   lastTickSave = 0;
