@@ -276,6 +276,8 @@
     background:var(--card2); color:var(--text); border:1px solid var(--line);
   }
   .btnrow button:active{background:var(--accent-soft); color:var(--accent);}
+  .btnrow button.off{opacity:.5;}
+  .reset-hint{margin:7px 0 0; font-size:11.5px; font-weight:600; color:var(--sub2); text-align:center; line-height:1.4;}
   .hold-row{display:flex; align-items:center; gap:12px; padding:14px 16px; position:relative;}
   .hold-row + .hold-row::before{content:"";position:absolute;left:16px;right:16px;top:0;height:1px;background:var(--line);}
   .hold-row:active{background:var(--card2);}
@@ -821,8 +823,9 @@
       <div class="kv"><span class="k">총 매입금액</span><span class="v" id="invCost">0원</span></div>
       <div class="kv"><span class="k">누적 입금</span><span class="v" id="invDeposit">0원</span></div>
       <div class="btnrow">
-        <button id="resetBtn">계좌 초기화 (1,000만원)</button>
+        <button id="resetBtn">계좌 초기화 (남은 횟수 3/3)</button>
       </div>
+      <p class="reset-hint" id="resetHint"></p>
     </div>
 
     <div class="ad-card" id="adCard"></div>
@@ -1136,6 +1139,10 @@
 
 const KEY = "moeigami_v2";
 const START_CASH = 10000000;
+/* 계좌 초기화: 돈이 없을 때만, 최대 3번 */
+const RESET_MAX = 3;                          // 계좌 초기화 가능 횟수
+const RESET_BROKE_LIMIT = 100000;             // 총자산이 이 금액 미만이면 '돈이 없을 때'
+const RESET_COUNT_KEY = "moeigami_reset_count_v1";   // 초기화해도 지워지지 않는 사용 횟수
 const TICK_MS = 1200;
 
 const STOCKS = [
@@ -2562,6 +2569,7 @@ function updateInvestLive(){
   const ibots = $("#invBots"); if (ibots) ibots.textContent = fmt(botPerSec() * 60) + "원/분";
   $("#invCost").textContent = won(cost);
   $("#invDeposit").textContent = won(state.deposited);
+  updateResetButton();
 
   Object.keys(state.holdings).forEach(c => {
     const h = state.holdings[c]; if (!h || h.qty <= 0) return;
@@ -2932,11 +2940,49 @@ window.moeigamiBack = function(){
 /* ---------------- 모달 ---------------- */
 function closeSheet(){ $("#scrim").classList.remove("show"); $("#sheet").innerHTML = ""; }
 
+/* 계좌 초기화 횟수 — localStorage에 따로 남겨 초기화해도 사용 횟수는 지워지지 않는다 */
+function resetCountOf(){
+  try {
+    const v = parseInt(localStorage.getItem(RESET_COUNT_KEY) || "0", 10);
+    if (!isFinite(v) || v <= 0) return 0;
+    return Math.min(v, RESET_MAX);
+  } catch(e){ return 0; }
+}
+function resetLeft(){ return Math.max(0, RESET_MAX - resetCountOf()); }
+function isResetBroke(){ return totalAsset() < RESET_BROKE_LIMIT; }
+function canResetAccount(){ return resetLeft() > 0 && isResetBroke(); }
+function updateResetButton(){
+  const b = $("#resetBtn");
+  const left = resetLeft();
+  if (b){
+    b.textContent = "계좌 초기화 (남은 횟수 " + left + "/" + RESET_MAX + ")";
+    b.classList.toggle("off", !canResetAccount());
+  }
+  const hint = $("#resetHint");
+  if (hint){
+    hint.textContent = left <= 0
+      ? "계좌 초기화 횟수를 모두 사용했어요 (" + RESET_MAX + "/" + RESET_MAX + ")"
+      : (isResetBroke()
+        ? "지금 초기화하면 예수금 1,000만원으로 복구돼요"
+        : "돈이 부족할 때만 초기화할 수 있어요 · 총자산 " + fmt(RESET_BROKE_LIMIT) + "원 미만");
+  }
+}
+
 function openReset(){
+  if (resetLeft() <= 0){
+    toast("계좌 초기화 횟수를 모두 사용했어요 (" + RESET_MAX + "/" + RESET_MAX + ")");
+    return;
+  }
+  if (!isResetBroke()){
+    toast("돈이 부족할 때만 계좌를 초기화할 수 있어요");
+    return;
+  }
+  const left = resetLeft();
   $("#sheet").innerHTML =
     '<h3>계좌 초기화</h3>'
     + '<p>보유 종목과 거래내역이 모두 사라지고<br>예수금이 1,000만원으로 돌아가요.</p>'
-    + '<button class="go danger" id="resetGo">초기화하기</button>'
+    + '<p style="margin-top:-6px;font-size:12px;font-weight:700;color:var(--sub2)">남은 초기화 횟수 ' + left + '회 / ' + RESET_MAX + '회</p>'
+    + '<button class="go danger" id="resetGo">초기화하기 (남은 ' + left + '/' + RESET_MAX + ')</button>'
     + '<button class="cancel" id="sheetCancel">닫기</button>';
   $("#scrim").classList.add("show");
 }
@@ -5013,6 +5059,9 @@ function bind(){
 }
 
 function resetAccount(){
+  if (!canResetAccount()){ openReset(); return; }   // 돈이 있거나 횟수를 다 쓴 경우엔 실행 금지
+  const used = Math.min(RESET_MAX, resetCountOf() + 1);
+  try { localStorage.setItem(RESET_COUNT_KEY, String(used)); } catch(e) {}   // 횟수 기록은 초기화와 함께 지우지 않는다
   const theme = state.theme;
   const nick = state.nick;
   const keepFriends = state.friends, keepGuests = state.guests, keepLikes = state.likes, keepMine = state.likeMine;
@@ -5033,7 +5082,7 @@ function resetAccount(){
   renderHome(); renderInvest(); renderHistory(); renderRank(); renderShop(); renderChallenge();
   updateHomeLive(); updateChallengeBar();
   if ($("#screen-detail").classList.contains("active")) showScreen("home");
-  toast("계좌를 초기화했어요 · 예수금 1,000만원");
+  toast("계좌를 초기화했어요 · 예수금 1,000만원 (남은 횟수 " + resetLeft() + "/" + RESET_MAX + ")");
 }
 
 /* ---------------- 부팅 ---------------- */
