@@ -508,6 +508,12 @@
   .rank-row .nm{flex:1; min-width:0; font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .rank-row .nm em{font-style:normal; font-size:10.5px; font-weight:800; color:var(--accent); margin-left:5px;}
   .rank-row .rt{font-size:13.5px; font-weight:800; font-variant-numeric:tabular-nums;}
+  .rank-row .rv{flex:0 0 auto; text-align:right; min-width:0;}
+  .rank-row .rv b{display:block; font-size:13.5px; font-weight:800; color:var(--text); letter-spacing:-.2px; white-space:nowrap; font-variant-numeric:tabular-nums;}
+  .rank-row .rv span{display:block; margin-top:2px; font-size:11px; font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums;}
+  .rank-row .no.medal{font-size:15px; line-height:1;}
+  .rank-sort{display:flex; gap:8px; padding:0 16px 12px;}
+  .rank-sort .chip{font-size:12px; padding:7px 12px;}
   .ach-grid{display:grid; grid-template-columns:1fr 1fr; gap:9px; padding:0 16px 8px;}
   .ach{
     background:var(--card); border-radius:14px; padding:12px; box-shadow:var(--shadow);
@@ -1076,7 +1082,11 @@
       <div class="prog"><i id="rankProg" style="width:0%"></i></div>
       <div class="progtxt" id="rankProgTxt"></div>
     </div>
-    <div class="sec-title"><span>실시간 수익률 순위</span><span class="more">나 + 라이벌 개미 10</span></div>
+    <div class="rank-sort" id="rankSortBar">
+      <button class="chip on" data-ranksort="asset">💰 총자산 순</button>
+      <button class="chip" data-ranksort="rate">📈 수익률 순</button>
+    </div>
+    <div class="sec-title"><span id="rankSecTitle">실시간 총자산 순위</span><span class="more" id="rankMyPos">나 + 라이벌 개미 10</span></div>
     <div class="list" id="rankList"></div>
     <div class="sec-title"><span>업적</span><span class="more" id="achCount">0/13</span></div>
     <div class="ach-grid" id="achGrid"></div>
@@ -1633,6 +1643,7 @@ function load(){
     if (typeof p.title === "string") state.title = p.title;
     if (p.bests && typeof p.bests === "object") state.bests = p.bests;
     if (Array.isArray(p.rivals) && p.rivals.length) state.rivals = p.rivals.filter(r => r && typeof r.r === "number");
+    if (p.rankSort === "rate" || p.rankSort === "asset") rankSort = p.rankSort;
     if (p.stats) state.stats = {
       liquidations: p.stats.liquidations || 0, rumorHits: p.stats.rumorHits || 0,
       rumorStreak: Math.max(0, p.stats.rumorStreak || 0), rumorBest: Math.max(0, p.stats.rumorBest || 0)
@@ -1703,7 +1714,7 @@ function save(force){
       prices: state.prices, opens: state.opens, opensAt: state.opensAt, news: state.news.slice(0, 12),
       positions: state.positions, rumors: state.rumors.slice(0, 6),
       achievements: state.achievements, flex: state.flex, title: state.title,
-      bests: state.bests, rivals: state.rivals, stats: state.stats,
+      bests: state.bests, rivals: state.rivals, stats: state.stats, rankSort: rankSort,
       challenge: state.challenge, free: state.free, tier: state.tier, nick: state.nick,
       lastTickAt: state.lastTickAt, claimedLevel: state.claimedLevel, level: state.level,
       room: state.room, friends: state.friends, guests: state.guests,
@@ -2125,7 +2136,11 @@ function stepMarket(t, ui){
   /* --- AI 라이벌 수익률 흔들기 --- */
   if (tickCount % 3 === 0){
     initRivals();
-    state.rivals.forEach(r => { r.r = clamp(r.r + gauss() * 0.5, -40, 80); });
+    /* 각 라이벌의 고유 성향(t0) 쪽으로 살짝 되돌아가며 흔들려서, 총자산 순위가 서로 엎치락뒤치락합니다 */
+    state.rivals.forEach(r => {
+      const t0 = typeof r.t0 === "number" ? r.t0 : r.r;
+      r.r = clamp(r.r + (t0 - r.r) * 0.02 + gauss() * 0.45, -40, 80);
+    });
   }
 
   /* --- 패시브 인컴 · 알바 개미 --- */
@@ -4122,16 +4137,54 @@ function saveNick(){
 }
 
 /* ---------------- 랭킹 ---------------- */
+/* 라이벌은 '원금(b)'과 '수익률(r)'을 가진 개미예요 — 총자산 = 원금 × (1 + 수익률).
+   원금을 레벨 자산표(LEVELS)에서 뽑아 써서, 내 총자산이 커질수록 위쪽 라이벌을 하나씩 앞지릅니다. */
 const RIVALS = [
-  "떡상요정", "존버장인", "물타기대마왕", "단타의신", "배당수집가",
-  "개미왕국", "차트도사", "역추세맨", "장기투자개미", "슈팅스타"
+  { n: "물타기대마왕", lv: 3,  t0: -14 },
+  { n: "슈팅스타",     lv: 6,  t0: 28 },
+  { n: "역추세맨",     lv: 9,  t0: -6 },
+  { n: "단타의신",     lv: 13, t0: 22 },
+  { n: "차트도사",     lv: 17, t0: 15 },
+  { n: "장기투자개미", lv: 22, t0: 11 },
+  { n: "배당수집가",   lv: 28, t0: 7 },
+  { n: "개미왕국",     lv: 36, t0: 14 },
+  { n: "떡상요정",     lv: 48, t0: 26 },
+  { n: "존버장인",     lv: 66, t0: 9 }
 ];
-const RIVAL_LV_BASE = 16;    // 라이벌 기준 레벨 (Lv.16~Lv.25)
+const RIVAL_LV_BASE = 16;    // 이름을 못 찾은 라이벌의 기준 레벨
 const RIVAL_LV_SPREAD = 10;
+function rivalBaseAsset(lv){ return levelInfo(clamp(Math.round(lv) || 2, 2, LV_MAX)).min; }
+/* 라이벌 총자산은 유효숫자 3자리로 다듬어 '1억 7,900만원'처럼 읽히게 하고, 정렬도 같은 값끼리 맞춥니다 */
+function niceAsset(v){
+  const n = Number(v) || 0;
+  if (!(n > 0)) return 0;
+  const step = Math.pow(10, Math.max(0, Math.floor(Math.log10(n)) - 2));
+  return Math.round(n / step) * step;
+}
+function rivalAsset(r){ return niceAsset((Number(r.b) || 0) * (1 + (Number(r.r) || 0) / 100)); }
+/* 수익률 표기 — 수백~수천%까지 나오므로 큰 값은 소수점 없이(만 단위는 줄여서) 표시 */
+function rankRateStr(n){
+  const v = Math.abs(n) < 0.005 ? 0 : Number(n) || 0;
+  const sign = v > 0 ? "+" : "";
+  const a = Math.abs(v);
+  if (a >= 1e8) return sign + Math.round(a / 1e8).toLocaleString("ko-KR") + "억%";
+  if (a >= 10000) return sign + Math.round(a / 10000).toLocaleString("ko-KR") + "만%";
+  if (a >= 1000) return sign + Math.round(a).toLocaleString("ko-KR") + "%";
+  return pctStr(v);
+}
 function initRivals(){
-  if (!state.rivals || !state.rivals.length){
-    state.rivals = RIVALS.map(n => ({ n, r: -6 + Math.random() * 16 }));
-  }
+  if (!Array.isArray(state.rivals)) state.rivals = [];
+  RIVALS.forEach(seed => {
+    const r = state.rivals.find(x => x && x.n === seed.n);
+    if (r){
+      r.t0 = seed.t0;
+      if (!(Number(r.b) > 0)) r.b = rivalBaseAsset(seed.lv);   // 예전 저장값 이전
+      if (typeof r.r !== "number") r.r = seed.t0;
+    } else {
+      state.rivals.push({ n: seed.n, r: seed.t0, t0: seed.t0, b: rivalBaseAsset(seed.lv) });
+    }
+  });
+  state.rivals.forEach(r => { if (!(Number(r.b) > 0)) r.b = rivalBaseAsset(RIVAL_LV_BASE); });
 }
 function myRate(){
   return state.deposited ? ((totalAsset() - state.deposited) / state.deposited) * 100 : 0;
@@ -4433,6 +4486,19 @@ function updatePositionsLive(){
   });
 }
 
+let rankSort = "asset";     // asset = 총자산 순 · rate = 수익률 순
+function syncRankChips(){
+  $$("#rankSortBar .chip").forEach(b => b.classList.toggle("on", b.dataset.ranksort === rankSort));
+  const t = $("#rankSecTitle");
+  if (t) t.textContent = rankSort === "rate" ? "실시간 수익률 순위" : "실시간 총자산 순위";
+}
+function setRankSort(v){
+  rankSort = v === "rate" ? "rate" : "asset";
+  state.rankSort = rankSort;
+  syncRankChips();
+  renderRank();
+  save(true);
+}
 function renderRank(){
   const asset = totalAsset();
   const lp = levelProgress(asset);
@@ -4448,16 +4514,24 @@ function renderRank(){
   if (ptxt) ptxt.textContent = lp.next ? ("다음 레벨 " + lvLabel(lp.next.lv) + "까지 " + shortWon(lp.next.min - asset) + "원") : "Lv.100 최고 레벨이에요 🎉";
 
   initRivals();
-  const me = { n: (state.nick || "나") + " (나)", r: myRate(), me: true };
-  const rows = [...state.rivals.map(r => ({ ...r })), me].sort((a, b) => b.r - a.r);
+  const me = { n: (state.nick || "나"), r: myRate(), a: Math.round(totalAsset()), me: true };
+  const rows = state.rivals.map(r => ({ n: r.n, r: Number(r.r) || 0, a: rivalAsset(r) })).concat([me]);
+  const byAsset = (x, y) => y.a - x.a || y.r - x.r;
+  const byRate = (x, y) => y.r - x.r || y.a - x.a;
+  rows.sort(rankSort === "rate" ? byRate : byAsset);
   const list = $("#rankList");
   if (list) list.innerHTML = rows.map((r, i) => {
+    const medal = i < 3 ? ["🥇", "🥈", "🥉"][i] : (i + 1);
     return '<div class="rank-row' + (r.me ? " me" : "") + '">'
-      + '<div class="no">' + (i + 1) + '</div>'
+      + '<div class="no' + (i < 3 ? " medal" : "") + '">' + medal + '</div>'
       + '<div class="nm">' + r.n + (r.me ? '<em>MY</em>' : '') + '</div>'
-      + '<div class="rt ' + cls(r.r) + '">' + (r.r > 0 ? "+" : "") + r.r.toFixed(2) + '%</div>'
+      + '<div class="rv"><b>' + bigWon(r.a) + '</b><span class="' + cls(r.r) + '">' + rankRateStr(r.r) + '</span></div>'
       + '</div>';
   }).join("");
+  const myIdx = rows.findIndex(x => x.me);
+  const pos = $("#rankMyPos");
+  if (pos) pos.textContent = myIdx >= 0 ? ("내 순위 " + (myIdx + 1) + "위 / " + rows.length + "명") : ("나 + 라이벌 개미 " + state.rivals.length);
+  syncRankChips();
 
   const grid = $("#achGrid");
   if (grid) grid.innerHTML = ACHS.map(a => {
@@ -4942,10 +5016,10 @@ function rivalProfile(name){
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 99991;
   const rr = (state.rivals || []).find(r => r.n === name);
-  const rate = rr ? rr.r : 0;
-  /* 라이벌마다 Lv.16~Lv.25 사이에 퍼지도록 이름 해시로 기준 레벨을 잡고, 수익률만큼 자산을 흔들어요 */
+  const rate = rr ? (Number(rr.r) || 0) : 0;
+  /* 라이벌의 실제 원금·수익률로 총자산을 잡고, 이름이 목록에 없으면 예전처럼 이름 해시로 기준 레벨을 뽑아요 */
   const lvBase = RIVAL_LV_BASE + (h % RIVAL_LV_SPREAD);
-  const asset = levelInfo(lvBase).min * (1 + rate / 100);
+  const asset = rr ? rivalAsset(rr) : levelInfo(lvBase).min * (1 + rate / 100);
   let stage = 0;
   if (asset >= 1e12) stage = 5;
   else if (asset >= 1e11) stage = 4;
@@ -4990,7 +5064,7 @@ function renderFriends(){
     rl.innerHTML = state.rivals.map((r, i) => {
       const p = rivalProfile(r.n);
       return '<div class="frow"><div class="fe">' + HOUSE_STAGES[p.h].e + '</div>'
-        + '<div class="fn"><b>' + r.n + '</b><span>' + (p.lvn ? "Lv." + p.lvn + " " : "") + p.lv + ' · ' + (r.r > 0 ? "+" : "") + r.r.toFixed(2) + '% · ' + HOUSE_STAGES[p.h].n + '</span></div>'
+        + '<div class="fn"><b>' + r.n + '</b><span>' + (p.lvn ? "Lv." + p.lvn + " " : "") + shortWon(p.a) + '원 · ' + pctStr(r.r) + ' · ' + HOUSE_STAGES[p.h].n + '</span></div>'
         + '<button data-visit-rival="' + i + '">집 놀러가기</button></div>';
     }).join("");
   }
@@ -5898,6 +5972,12 @@ function bind(){
     if (r) openVisit(rivalProfile(r.n));
   });
 
+  const rsb = $("#rankSortBar");
+  if (rsb) rsb.addEventListener("click", e => {
+    const b = e.target.closest("[data-ranksort]");
+    if (b) setRankSort(b.dataset.ranksort);
+  });
+
   // 방문 화면
   const vb = $("#visitBack"); if (vb) vb.addEventListener("click", () => { showScreen("shop"); switchShopView("room"); });
   const vh = $("#visitHome"); if (vh) vh.addEventListener("click", () => { showScreen("shop"); switchShopView("room"); });
@@ -6029,5 +6109,6 @@ function boot(){
 
 document.addEventListener("DOMContentLoaded", boot);
 </script>
+<script type="module" src="./src/ait-bridge.js"></script>
 </body>
 </html>
