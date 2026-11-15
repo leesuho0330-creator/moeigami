@@ -1168,6 +1168,7 @@ const IPO_PREFIX = ["솜사탕", "별무리", "초코칩", "무지개", "도깨�
 const IPO_SUFFIX = ["로보틱스", "바이오", "랩스", "모빌리티", "에이아이", "에너지", "테크", "소프트"];
 const IPO_COLORS = ["#C25E9B", "#5A7BD8", "#D08A3E", "#4C9A87", "#8E6BC4", "#C0564E", "#6E8F4A", "#3F7C86"];
 const IPO_GAP = [75000, 165000];
+const NEW_BADGE_MS = 3 * 24 * 60 * 60 * 1000;   // 🆕 상장 딱지 유지 기간(상장 후 3일)
 let DYN = [];   // 동적 상장주 설명자 [{code,name,market,base,vol,color,listedAt}]
 function nextIpoGap(){ return IPO_GAP[0] + Math.random() * (IPO_GAP[1] - IPO_GAP[0]); }
 function dynStockList(){ return STOCKS.filter(s => s.dyn); }
@@ -2400,12 +2401,32 @@ function logoText(name){
   if (/^[A-Z]/.test(name)) return name.slice(0, 2).toUpperCase();
   return name.slice(0, 1);
 }
+function isNewListing(s){
+  if (!s || !s.dyn) return false;
+  const listedAt = Number(s.listedAt) || 0;
+  if (!listedAt) return false;   // 상장 시각을 모르는 종목은 신규로 보지 않는다
+  return (Date.now() - listedAt) < NEW_BADGE_MS;
+}
 function stockTags(s){
   if (!s) return "";
   let t = "";
   if (s.hot) t += '<i class="tag hot">🔥 급등주</i>';
-  if (s.dyn) t += '<i class="tag new">🆕 상장</i>';
+  if (isNewListing(s)) t += '<i class="tag new">🆕 상장</i>';
   return t ? '<i class="tags">' + t + '</i>' : "";
+}
+/* 상장 3일이 지난 종목의 🆕 상장 딱지를 화면에서 바로 지운다(전체 재렌더 없이) */
+function refreshNewBadges(){
+  $$("[data-code]").forEach(row => {
+    const code = row.getAttribute("data-code");
+    if (!code) return;
+    const tag = row.querySelector(".tag.new");
+    if (tag && !isNewListing(BY_CODE[code])) tag.remove();
+  });
+  const dm = $("#dMeta");
+  if (dm){
+    const tag = dm.querySelector(".tag.new");
+    if (tag && detailCode && !isNewListing(BY_CODE[detailCode])) tag.remove();
+  }
 }
 function textOn(hex){
   const h = hex.replace("#","");
@@ -2452,6 +2473,7 @@ function renderNews(){
 
 function updateHomeLive(){
   renderRumorButton();
+  refreshNewBadges();
   // 자산
   const total = totalAsset();
   const { cost } = stockEval();
@@ -2720,6 +2742,7 @@ function attachChartEvents(){
 
 function updateDetailLive(){
   if (!detailCode) return;
+  refreshNewBadges();
   const code = detailCode, s = BY_CODE[code];
   const p = safePx(state.prices[code], s.base), o = safePx(state.opens[code], p);
   const d = p - o, r = (d / o) * 100;
