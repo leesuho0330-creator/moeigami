@@ -336,6 +336,7 @@
   .sheet{
     width:100%; background:var(--card); border-radius:22px 22px 0 0;
     padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+    max-height:calc(100% - 12px); overflow-y:auto; -webkit-overflow-scrolling:touch;
     animation:up .22s cubic-bezier(.2,.8,.2,1);
   }
   @keyframes up{from{transform:translateY(40px);} to{transform:none;}}
@@ -787,6 +788,51 @@
     width:100%; margin-top:10px; padding:14px 0; border-radius:14px; background:var(--brand); color:#fff;
     font-size:14px; font-weight:900;
   }
+
+  /* --- 출석 · 일일 미션 · 속보 연승 --- */
+  .attend-bar{display:flex; align-items:center; gap:10px; margin:0 16px 10px; padding:11px 13px; border-radius:14px; background:var(--card); box-shadow:var(--shadow);}
+  .attend-bar .ab-e{font-size:17px;}
+  .attend-bar .ab-t{flex:1; min-width:0;}
+  .attend-bar .ab-t b{display:block; font-size:12.5px; font-weight:800;}
+  .attend-bar .ab-t span{display:block; font-size:10.5px; color:var(--sub); font-weight:600; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .attend-bar .ab-dots{display:flex; gap:3px; flex:0 0 auto;}
+  .attend-bar .ab-dots i{width:6px; height:6px; border-radius:50%; background:var(--card2);}
+  .attend-bar .ab-dots i.on{background:var(--brand);}
+  .mission-card{margin:0 16px 12px; background:var(--card); border-radius:16px; box-shadow:var(--shadow); overflow:hidden;}
+  .ms-row{display:flex; align-items:center; gap:10px; padding:11px 14px; position:relative;}
+  .ms-row + .ms-row::before{content:""; position:absolute; left:14px; right:14px; top:0; height:1px; background:var(--line);}
+  .ms-row .ms-e{font-size:16px; line-height:1.2;}
+  .ms-row .ms-t{flex:1; min-width:0;}
+  .ms-row .ms-t b{display:block; font-size:12.5px; font-weight:800;}
+  .ms-row .ms-t span{display:block; font-size:10.5px; color:var(--sub); font-weight:600; margin-top:2px;}
+  .ms-row .ms-r{flex:0 0 auto; font-size:10.5px; font-weight:800; color:var(--brand); white-space:nowrap;}
+  .ms-row.on{background:var(--accent-soft);}
+  .ms-row.on .ms-r{color:var(--sub);}
+  .streak-pill{display:inline-flex; align-items:center; gap:3px; padding:2px 7px; border-radius:999px; background:var(--up-soft); color:var(--up); font-size:10px; font-weight:900; margin-left:5px;}
+
+  /* --- 챌린지 결과 카드 · 도전장 --- */
+  .share-card{margin:2px 0 10px; border-radius:18px; padding:14px; background:linear-gradient(150deg,#1E2732,#121821); color:#F2F5F7; box-shadow:0 10px 24px rgba(15,20,28,.22);}
+  :root[data-theme="dark"] .share-card{background:linear-gradient(150deg,#22302A,#141B18);}
+  .share-card .sc-top{display:flex; align-items:center; gap:8px; font-size:11px; font-weight:800; color:#8CE3BE; letter-spacing:.04em;}
+  .share-card .sc-nick{font-size:15px; font-weight:900; margin-top:8px;}
+  .share-card .sc-rate{font-size:30px; font-weight:900; letter-spacing:-.04em; margin-top:2px; font-variant-numeric:tabular-nums;}
+  .share-card .sc-title{display:inline-block; margin-top:6px; padding:4px 9px; border-radius:999px; background:rgba(255,255,255,.11); font-size:11px; font-weight:800;}
+  .share-card .sc-rows{margin-top:9px; border-top:1px solid rgba(255,255,255,.12); padding-top:6px;}
+  .share-card .sc-row{display:flex; justify-content:space-between; gap:10px; font-size:12px; font-weight:700; padding:3px 0; color:#C9D6DE;}
+  .share-card .sc-row b{color:#fff; font-variant-numeric:tabular-nums; text-align:right;}
+  .share-card .sc-duel{margin-top:9px; padding:9px 11px; border-radius:11px; background:rgba(255,255,255,.09); font-size:12px; font-weight:800; line-height:1.5;}
+  .share-card .sc-duel.win{background:rgba(44,201,138,.18); color:#B7F4D8;}
+  .share-card .sc-duel.lose{background:rgba(228,69,58,.16); color:#FFB3AB;}
+  .duel-banner{margin:0 16px 12px; padding:14px 15px; border-radius:16px; background:var(--accent-soft); box-shadow:var(--shadow);}
+  .duel-banner b{display:block; font-size:13.5px; font-weight:900; color:var(--accent);}
+  .duel-banner span{display:block; font-size:11px; font-weight:700; margin-top:4px; line-height:1.5; color:var(--text); opacity:.75;}
+  .duel-banner .db-btns{display:flex; gap:8px; margin-top:10px;}
+  .duel-banner .db-btns button{flex:1; padding:11px 0; border-radius:11px; font-size:12px; font-weight:800; background:var(--card); color:var(--text); border:1px solid var(--line);}
+  .duel-banner .db-btns button.prim{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .sheet .share-btns{display:flex; gap:8px; margin-top:10px;}
+  .sheet .share-btns button{flex:1; padding:13px 0; border-radius:12px; font-size:13px; font-weight:800; background:var(--card2); border:1px solid var(--line); color:var(--text);}
+  .sheet .share-btns button.prim{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .sheet .nicksheet input{width:100%; padding:13px 14px; border-radius:12px; border:1px solid var(--line); background:var(--card2); color:var(--text); font-size:16px; font-weight:800; outline:none;}
 </style>
 </head>
 <body>
@@ -814,8 +860,10 @@
     </div>
 
     <div id="homeHungerWrap"></div>
+    <div id="attendWrap"></div>
+    <div id="missionWrap"></div>
 
-    <div class="sec-title" style="margin-top:18px"><span>🔔 긴급 속보 <span style="color:var(--sub2);font-weight:700;font-size:11px">찌라시</span></span><button class="more" id="rumorBtn">+ 소문 엿듣기</button></div>
+    <div class="sec-title" style="margin-top:18px"><span>🔔 긴급 속보 <span style="color:var(--sub2);font-weight:700;font-size:11px">찌라시</span><span id="rumorStreak" class="streak-pill" style="display:none"></span></span><button class="more" id="rumorBtn">+ 소문 엿듣기</button></div>
     <div id="rumorList"></div>
 
     <div class="sec-title"><span>실시간 시세</span><span class="more" id="liveDot">● LIVE</span></div>
@@ -853,6 +901,7 @@
       <div class="kv"><span class="k">예수금</span><span class="v" id="invCash">0원</span></div>
       <div class="kv"><span class="k">주식 평가금액</span><span class="v" id="invStock">0원</span></div>
       <div class="kv"><span class="k">포지션 평가금액</span><span class="v" id="invPos">0원</span></div>
+      <div class="kv"><span class="k">플렉스·부동산 평가</span><span class="v" id="invFlex">0원</span></div>
       <div class="kv"><span class="k">패시브 수익</span><span class="v" id="invPassive" style="color:var(--accent)">0원/분</span></div>
       <div class="kv"><span class="k">알바 개미 수익</span><span class="v" id="invBots" style="color:var(--accent)">0원/분</span></div>
       <div class="kv"><span class="k">총 매입금액</span><span class="v" id="invCost">0원</span></div>
@@ -1022,13 +1071,14 @@
           <b id="rankTier">알개미 I</b>
           <span id="rankSub">-</span>
         </div>
+        <button class="iconbtn" id="nickBtn" aria-label="닉네임 변경" style="box-shadow:none;background:var(--card2);width:34px;height:34px;font-size:14px">✏️</button>
       </div>
       <div class="prog"><i id="rankProg" style="width:0%"></i></div>
       <div class="progtxt" id="rankProgTxt"></div>
     </div>
     <div class="sec-title"><span>실시간 수익률 순위</span><span class="more">나 + 라이벌 개미 10</span></div>
     <div class="list" id="rankList"></div>
-    <div class="sec-title"><span>업적</span><span class="more" id="achCount">0/12</span></div>
+    <div class="sec-title"><span>업적</span><span class="more" id="achCount">0/13</span></div>
     <div class="ach-grid" id="achGrid"></div>
     <div style="height:8px"></div>
   </main>
@@ -1047,7 +1097,7 @@
       <div class="shop-head">
         <div class="k">내 예수금</div>
         <div class="v" id="shopCash">0원</div>
-        <div class="s">모의 예수금으로만 결제돼요 · 실제 돈은 오가지 않아요<br>사면 내 집에 배치해 분당 <b>가격의 5%</b> 수익을 받아요<br>수만 원 잡화부터 수백조 원 우주 프로젝트까지 100종</div>
+        <div class="s">모의 예수금으로만 결제돼요 · 실제 돈은 오가지 않아요<br>사면 내 집에 배치해 분당 <b>가격의 5%</b> 수익을 받아요 · 산 아이템은 <b>구매가의 80%</b>가 총자산에 잡혀요<br>수만 원 잡화부터 수백조 원 우주 프로젝트까지 100종</div>
       </div>
       <div class="bot-box" id="premiumBox"></div>
       <div class="bot-box" id="botBox"></div>
@@ -1099,6 +1149,7 @@
     <div class="hdr"><h1>3분 챌린지</h1>
       <button class="iconbtn" id="themeBtn6" aria-label="테마 변경"><span>🌙</span></button>
     </div>
+    <div id="duelWrap"></div>
     <div id="chalBody"></div>
     <div style="height:8px"></div>
   </main>
@@ -1180,6 +1231,8 @@ const RESET_MAX = 3;                          // 계좌 초기화 가능 횟수
 const RESET_BROKE_LIMIT = 10000000;           // 총자산이 이 금액(1,000만원) 미만이면 '돈이 없을 때'
 const RESET_COUNT_KEY = "moeigami_reset_count_v1";   // 초기화해도 지워지지 않는 사용 횟수
 const TICK_MS = 1200;
+const OPEN_REFRESH_MS = 30 * 60 * 1000;       // 시가(기준가) 갱신 주기 — 30분마다 새 기준으로 현실화
+const FLEX_VALUE_RATE = 0.8;                  // 상점 아이템은 구매가의 80%로 총자산에 평가(사자마자 폭락 방지)
 
 const STOCKS = [
   {code:"A001", name:"달토깽전자",   market:"KOSPI",  base:71200,  vol:0.0016, color:"#2F7D5B"},
@@ -1485,7 +1538,7 @@ function newState(){
     deposited: START_CASH,
     holdings: {},   // code -> {qty, avg}
     trades: [],     // {id,t,code,side,qty,price,total,lev}
-    prices, opens,
+    prices, opens, opensAt: 0,
     news: [],
     dynamic: [],        // 동적 상장주 (localStorage 동기화용)
     /* --- 게임 요소 --- */
@@ -1496,7 +1549,7 @@ function newState(){
     title: "",           // 대표 칭호
     bests: {},           // 챌린지 최고 기록
     rivals: [],          // AI 라이벌
-    stats: { liquidations: 0, rumorHits: 0 },
+    stats: { liquidations: 0, rumorHits: 0, rumorStreak: 0, rumorBest: 0 },
     challenge: null,
     free: null,
     tier: "알개미",
@@ -1523,7 +1576,10 @@ function newState(){
     hunger: 100,
     hungerAt: 0,
     premium: { rumorTickets: 0 },   // 프리미엄 상품으로 받은 무료 엿듣기 횟수
-    boosterUntil: 0                   // 수익 2배 부스터 종료 시각(ms)
+    boosterUntil: 0,                  // 수익 2배 부스터 종료 시각(ms)
+    boostTrial: { day: "", count: 0 },// 부스터 광고 무료 체험(하루 3회)
+    attend: { last: "", streak: 0, best: 0, total: 0, lastReward: 0 },   // 연속 출석
+    missions: { day: "", done: [], all: false }                          // 일일 미션 3개
   };
 }
 
@@ -1552,9 +1608,11 @@ function load(){
         if (BY_CODE[c] && h && h.qty > 0) state.holdings[c] = {qty: Math.floor(h.qty), avg: Number(h.avg) || BY_CODE[c].base};
       });
     }
-    if (Array.isArray(p.trades)) state.trades = p.trades.filter(t => t && BY_CODE[t.code] && t.qty > 0);
+    /* 상장폐지된 종목의 과거 거래도 종목명과 함께 남긴다 */
+    if (Array.isArray(p.trades)) state.trades = p.trades.filter(t => t && t.qty > 0 && (BY_CODE[t.code] || t.name || t.code));
     if (p.prices) STOCKS.forEach(s => { if (typeof p.prices[s.code] === "number" && p.prices[s.code] > 0) state.prices[s.code] = snap(p.prices[s.code]); });
     if (p.opens) STOCKS.forEach(s => { if (typeof p.opens[s.code] === "number" && p.opens[s.code] > 0) state.opens[s.code] = p.opens[s.code]; });
+    if (typeof p.opensAt === "number") state.opensAt = p.opensAt;
     if (Array.isArray(p.news)) state.news = p.news.slice(0, 12);
     /* --- 게임 요소 --- */
     if (Array.isArray(p.positions)) {
@@ -1575,9 +1633,13 @@ function load(){
     if (typeof p.title === "string") state.title = p.title;
     if (p.bests && typeof p.bests === "object") state.bests = p.bests;
     if (Array.isArray(p.rivals) && p.rivals.length) state.rivals = p.rivals.filter(r => r && typeof r.r === "number");
-    if (p.stats) state.stats = { liquidations: p.stats.liquidations || 0, rumorHits: p.stats.rumorHits || 0 };
+    if (p.stats) state.stats = {
+      liquidations: p.stats.liquidations || 0, rumorHits: p.stats.rumorHits || 0,
+      rumorStreak: Math.max(0, p.stats.rumorStreak || 0), rumorBest: Math.max(0, p.stats.rumorBest || 0)
+    };
     if (p.challenge && p.free) { state.challenge = p.challenge; state.free = p.free; }
     if (typeof p.tier === "string") state.tier = p.tier;
+    if (typeof p.nick === "string" && p.nick.trim()) state.nick = p.nick.trim().slice(0, 12);
     if (typeof p.lastTickAt === "number") state.lastTickAt = p.lastTickAt;
     if (typeof p.claimedLevel === "number") state.claimedLevel = clamp(Math.round(p.claimedLevel), 1, LV_MAX);
     /* 레벨 필드가 없는 예전 저장값은 0으로 두어 checkLevel 이 소급 지급 없이 맞춥니다 */
@@ -1608,6 +1670,24 @@ function load(){
     if (typeof p.relistAt === "number") state.relistAt = p.relistAt;
     if (typeof p.delistLockUntil === "number") state.delistLockUntil = p.delistLockUntil;
     if (Array.isArray(p.delisted)) state.delisted = p.delisted.filter(d => d && d.code).slice(-12);
+    if (p.boostTrial && typeof p.boostTrial === "object") state.boostTrial = { day: String(p.boostTrial.day || ""), count: Math.max(0, Math.floor(Number(p.boostTrial.count) || 0)) };
+    if (p.attend && typeof p.attend === "object") state.attend = {
+      last: String(p.attend.last || ""), streak: Math.max(0, Math.floor(Number(p.attend.streak) || 0)),
+      best: Math.max(0, Math.floor(Number(p.attend.best) || 0)), total: Math.max(0, Math.floor(Number(p.attend.total) || 0)),
+      lastReward: Math.max(0, Math.floor(Number(p.attend.lastReward) || 0))
+    };
+    if (p.missions && typeof p.missions === "object") state.missions = {
+      day: String(p.missions.day || ""),
+      done: Array.isArray(p.missions.done) ? p.missions.done.filter(id => typeof id === "string").slice(0, 6) : [],
+      all: !!p.missions.all
+    };
+    /* 이름이 비어 있는 옛 거래내역은 지금 종목명/폐지 이력으로 채워 넣는다 */
+    (state.trades || []).forEach(t => {
+      if (!t || t.name) return;
+      const s = BY_CODE[t.code];
+      const d = (state.delisted || []).find(x => x.code === t.code);
+      t.name = s ? s.name : (d ? d.name : String(t.code || ""));
+    });
   } catch(e) { state = newState(); }
 }
 
@@ -1620,7 +1700,7 @@ function save(force){
     localStorage.setItem(KEY, JSON.stringify({
       theme: state.theme, cash: state.cash, deposited: state.deposited,
       holdings: state.holdings, trades: state.trades.slice(0, 300),
-      prices: state.prices, opens: state.opens, news: state.news.slice(0, 12),
+      prices: state.prices, opens: state.opens, opensAt: state.opensAt, news: state.news.slice(0, 12),
       positions: state.positions, rumors: state.rumors.slice(0, 6),
       achievements: state.achievements, flex: state.flex, title: state.title,
       bests: state.bests, rivals: state.rivals, stats: state.stats,
@@ -1634,7 +1714,8 @@ function save(force){
       delistLockUntil: state.delistLockUntil, delisted: state.delisted,
       dynamic: DYN,
       hunger: state.hunger, hungerAt: state.hungerAt,
-      premium: state.premium, boosterUntil: state.boosterUntil
+      premium: state.premium, boosterUntil: state.boosterUntil,
+      boostTrial: state.boostTrial, attend: state.attend, missions: state.missions
     }));
   } catch(e) {}
   saveTicks(force);
@@ -1704,6 +1785,8 @@ const VOL_TREND = { chance: 0.035, min: 3, max: 8, pow: [1.2, 2.4] };
 /* 펌핑 뒤 덤핑(차익실현 폭락) — 연속 상승 뒤 확률적으로 강하게 꺾인다 */
 const VOL_PUMP = { turn: 4.5, chance: 0.26 };
 const VOL_CAP = { normal: 0.06, hot: 0.35 };   // 종목별 기본 변동 상한(급등주는 훨씬 크게)
+let VOL_DRIFT_FIX = 8.0;                  // 기하 브라운 운동 -0.5σ² 끌림 보정 계수(체감 변동성 기준)
+let VOL_DRIFT_CAP = 0.0035;               // 보정 상한(틱당) — 급등주가 위로 폭주하지 않게
 /* 기저가 대비 가격 허용 범위 — 급등주는 0.02배(98% 폭락)부터 40배까지 */
 const PRICE_RANGE = { normal: [0.15, 6.0], hot: [0.02, 40.0] };
 
@@ -1814,7 +1897,7 @@ function tickShock(s, t, prev){
       v.burstUntil = 0;                                   // 랠리 버스트는 즉시 접는다
       shock = -bv * (dumpPow[0] + Math.random() * dumpPow[1]) - Math.abs(gauss() * bv);
       v.pump = 0; v.dumpUntil = t + 8 * TICK_MS;
-    } else if (v.pump < -pumpTurn && Math.random() < pumpChance * 0.85){
+    } else if (v.pump < -pumpTurn && Math.random() < pumpChance){
       v.trendDir = 1;
       v.trendUntil = t + (hot ? 4 + Math.random() * 4 : 3 + Math.random() * 4) * TICK_MS;
       v.trendPow = hot ? 0.7 : VOL_TREND.pow[1];
@@ -1870,28 +1953,32 @@ function pushTick(code, t, p){
   return pt;
 }
 
-/* 초기(또는 복원 실패 시) 차트 시드 — 지금 변동성 그대로 뒤로 걸어가며 만든다 */
+/* 초기(또는 복원 실패 시) 차트 시드 — 기저가 근처에서 완만하게 오르내리는 평균회귀 랜덤워크.
+   예전에는 현재 변동성 그대로 뒤로 걸어가서 첫 화면이 전 종목 -60~80% 급락처럼 보였다. */
 function seedTicks(code, price){
   const now = Date.now();
   const s = BY_CODE[code];
   const arr = [];
   const hot = !!s.hot;
-  /* 급등주 시드 히스토리는 실제 호가보다 차분하게 — 0.25~3.5배 범위의 파동만 그린다 */
-  const bv = baseVolOf(s) * (hot ? 0.5 : 1);
-  const mt = maxTickOf(s) * (hot ? 0.7 : 1);
+  const anchor = safePx(price, snap(s.base));
+  const n = 420;
   const seedLo = hot ? Math.max(priceFloor(s), Math.round(s.base * 0.25)) : priceFloor(s);
   const seedHi = hot ? Math.min(priceCeil(s), Math.round(s.base * 3.5)) : priceCeil(s);
-  const anchor = safePx(price, snap(s.base));
-  let p = anchor;
-  for (let i = 0; i < 420; i++){
-    arr.push({t: now - i * TICK_MS, p: snap(p)});
-    const pull = ((s.base - p) / s.base) * (hot ? 0.12 : 0.05);   // 기저가에서 너무 멀어지지 않게
-    const step = clamp(gauss() * bv * 0.85 + pull, -mt, mt);
-    p = p / (1 + step);
-    if (!isFinite(p) || p <= 0) p = anchor;
-    p = clamp(p, seedLo, seedHi);
+  const stepSd = Math.min(baseVolOf(s) * (hot ? 0.45 : 0.5), hot ? 0.020 : 0.012);
+  const kappa = 0.02;              // 기저가로 되돌아가는 힘
+  const xCap = hot ? 0.45 : 0.22;  // 시드 차트가 급락처럼 보이지 않게 편차를 묶어 둔다
+  let x = 0;                       // 현재가 대비 로그 편차
+  const back = [];
+  for (let i = 0; i < n; i++){
+    back.push(x);
+    x = x * (1 - kappa) + gauss() * stepSd;
+    x = clamp(x, -xCap, xCap);
   }
-  arr.reverse();
+  for (let i = n - 1; i >= 0; i--){
+    const p = clamp(anchor * Math.exp(back[i]), seedLo, seedHi);
+    arr.push({ t: now - i * TICK_MS, p: snap(p) });
+  }
+  if (arr.length) arr[arr.length - 1] = { t: now, p: snap(anchor) };   // 오른쪽 끝은 현재가와 정확히
   return arr;
 }
 
@@ -1931,19 +2018,37 @@ const NEWS_ACTS = [
 function stepMarket(t, ui){
   const ch = state.challenge;
   const prevPx = {};
-  maybeStartCrash(t);
+  /* 친구 대결용 시드 챌린지는 미리 계산한 시세 경로를 그대로 쓴다(같은 시드 = 같은 시장) */
+  const scripted = !!(ch && ch.mult && ch.startPrices);
+  if (!scripted) maybeStartCrash(t);
   STOCKS.slice().forEach(s => {
     const prev = state.prices[s.code];
     if (typeof prev !== "number") return;
     prevPx[s.code] = prev;
+    if (scripted){
+      const path = ch.mult[s.code];
+      const base = ch.startPrices[s.code];
+      if (path && base > 0){
+        const i = clamp(Math.floor((t - ch.startAt) / TICK_MS), 0, path.length - 1);
+        const next = clamp(snap(base * path[i]), priceFloor(s), priceCeil(s));
+        state.prices[s.code] = next;
+        s.volume = (s.volume || 120000) + Math.floor(Math.random() * 9000) + 500;
+        if (ticks[s.code]) pushTick(s.code, t, next);
+      }
+      return;
+    }
     /* 대폭락 중인 종목은 매도세가 밀어붙인다(차트가 계단처럼 무너진다) */
     const isCrash = !!(state.crash && state.crash.code === s.code && t < state.crash.until);
     const crashDrift = isCrash ? -(0.10 + Math.random() * 0.07) : 0;
     const kRef = s.hot ? 0.015 : 0.03;  // 기저가로 되돌리는 힘(급등주는 약하게 — 큰 파동이 오래 이어지게)
-    const drift = ((s.base - prev) / s.base) * kRef + crashDrift + (ch ? (ch.kind === "crash" ? -0.0020 : 0.0013) : 0);
     /* 상장 직후 22초는 상장 버프(높은 변동성) */
     const ipoBuff = s.dyn ? ((t - (s.listedAt || 0)) < 22000 ? 1.6 : 1) : 1;
     const chMult = ch ? (ch.kind === "crash" ? 1.7 : 1.25) : 1;
+    /* 기하 브라운 운동의 -0.5σ² 끌림 보정 — 3분만 돌려도 시장이 구조적으로 하락하지 않게 */
+    const volRaw = baseVolOf(s) * chMult * ipoBuff * (isCrash ? 1.7 : 1);
+    const driftFix = Math.min(VOL_DRIFT_CAP, 0.5 * volRaw * volRaw * VOL_DRIFT_FIX);
+    /* 기저가 회귀는 로그 기준으로 대칭 — 예전엔 위로 벗어날 때 더 세게 눌러 중앙값이 음수로 치우쳤다 */
+    const drift = -Math.log(Math.max(1, prev) / s.base) * kRef + crashDrift + driftFix;
     let shock = tickShock(s, t, prev) * chMult * ipoBuff * (isCrash ? 1.7 : 1);
     let next = snap(prev * (1 + drift + shock));
     /* 폭락 중에는 상장폐지선(기준가의 12%) 아래까지 내려갈 수 있게 바닥을 열어 둔다 */
@@ -1965,7 +2070,7 @@ function stepMarket(t, ui){
   });
 
   /* --- 상장폐지 판정: 한 번에 한 종목만 (쿨다운·대체 상장 대기 중엔 없음) --- */
-  if (!state.relistAt && t >= (state.delistLockUntil || 0)){
+  if (!scripted && !state.relistAt && t >= (state.delistLockUntil || 0)){
     /* 급등주는 상장폐지 대상에서 뺀다 — 대신 바닥(기준가의 2%)에서 튕겨 계속 롤러코스터를 탄다 */
     const dying = STOCKS.filter(x => !x.hot && (state.prices[x.code] || 0) > 0 && state.prices[x.code] <= x.base * DELIST_RATIO);
     if (dying.length){
@@ -1974,18 +2079,18 @@ function stepMarket(t, ui){
     }
   }
   /* --- 상장폐지된 자리에 새 종목 대체 상장(10~20초 뒤) --- */
-  if (state.relistAt && t >= state.relistAt) relistAfterDelist(t, ui);
+  if (!scripted && state.relistAt && t >= state.relistAt) relistAfterDelist(t, ui);
 
   /* --- 무작위 신규 상장 --- */
-  if (!state.nextIpoAt) state.nextIpoAt = t + nextIpoGap();
-  if (t >= state.nextIpoAt){
+  if (!scripted && !state.nextIpoAt) state.nextIpoAt = t + nextIpoGap();
+  if (!scripted && t >= state.nextIpoAt){
     listNewStock(t, ui);
     state.nextIpoAt = t + nextIpoGap();
   }
 
   // 뉴스 이벤트 (2~5분 랜덤 간격)
-  if (!state.nextNewsAt) scheduleNews(t);
-  if (t >= state.nextNewsAt){
+  if (!scripted && !state.nextNewsAt) scheduleNews(t);
+  if (!scripted && t >= state.nextNewsAt){
     const s = STOCKS[Math.floor(Math.random() * STOCKS.length)];
     const act = NEWS_ACTS[Math.floor(Math.random() * NEWS_ACTS.length)];
     const move = (0.02 + Math.random() * 0.09) * act.dir;
@@ -1999,19 +2104,19 @@ function stepMarket(t, ui){
   }
 
   /* --- 속보 결과 처리 --- */
-  if (state.rumors && state.rumors.length){
+  if (!scripted && state.rumors && state.rumors.length){
     state.rumors.forEach(r => { if (!r.done && r.choice && r.resolvesAt && t >= r.resolvesAt) resolveRumor(r); });
   }
   /* --- 미선택 속보는 15초 뒤 자동 만료 --- */
-  if (state.rumors && state.rumors.length){
+  if (!scripted && state.rumors && state.rumors.length){
     const before = state.rumors.length;
     state.rumors = state.rumors.filter(r => r.done || r.choice || !r.expiresAt || t < r.expiresAt);
     if (state.rumors.length !== before){
       if (!SILENT){ renderRumors(); save(true); }
     } else if (ui) updateRumorCountdown();
   }
-  if (!state.nextRumorAt) scheduleRumor(t);
-  if (t >= state.nextRumorAt){
+  if (!scripted && !state.nextRumorAt) scheduleRumor(t);
+  if (!scripted && t >= state.nextRumorAt){
     if (activeRumors().length >= 2) state.nextRumorAt = t + 8000;
     else if (spawnRumor(false)) scheduleRumor(t);              // 정상 발생 → 45~110초 뒤
     else state.nextRumorAt = t + 2500 + Math.random() * 2500;  // 시트가 열려 있으면 잠깐만 미룸
@@ -2036,6 +2141,9 @@ function stepMarket(t, ui){
 
   /* --- 레버리지·숏 강제청산 --- */
   checkLiquidations(prevPx);
+
+  /* --- 시가(기준가) 현실화: 30분마다 새 기준으로 갱신 --- */
+  ensureOpens(t);
 
   equityHist.push({ t, v: totalAsset() });
   if (equityHist.length > 240) equityHist.shift();
@@ -2166,7 +2274,30 @@ function stockEval(){
 }
 function totalAsset(){
   const { ev } = stockEval();
-  return state.cash + ev + posEquity();
+  return state.cash + ev + posEquity() + flexValue();
+}
+/* 상점에서 산 아이템(부동산·플렉스)의 보유 가치 — 구매가의 80%로 총자산에 잡힌다.
+   사자마자 수익률이 폭락하거나 레벨이 내려가던 문제를 막는다. */
+function flexValue(){
+  const flex = (state && state.flex) || {};
+  let sum = 0;
+  Object.keys(flex).forEach(id => {
+    const it = ITEM_BY_ID[id];
+    const n = Math.max(0, Math.floor(Number(flex[id]) || 0));
+    if (!it || !n) return;
+    sum += it.p * n;
+  });
+  return Math.round(sum * FLEX_VALUE_RATE);
+}
+/* 시가(기준가)가 영원히 고정되면 등락률이 수백%까지 가버린다 — 30분 주기로 지금 가격을 새 시가로 삼는다 */
+function ensureOpens(now, force){
+  const t = now || Date.now();
+  if (state.challenge && !force) return;             // 챌린지 중엔 시작 시세를 그대로 기준으로 둔다
+  const win = Math.floor(t / OPEN_REFRESH_MS) * OPEN_REFRESH_MS;
+  if (!force && state.opensAt === win) return;
+  if (!state.opens) state.opens = {};
+  STOCKS.forEach(s => { state.opens[s.code] = safePx(state.prices[s.code], snap(s.base)); });
+  state.opensAt = win;
 }
 
 /* ---------------- 테마 ---------------- */
@@ -2703,6 +2834,7 @@ function updateInvestLive(){
   $("#invCash").textContent = won(state.cash);
   $("#invStock").textContent = won(ev);
   const ipv = $("#invPos"); if (ipv) ipv.textContent = won(posEquity());
+  const ifx = $("#invFlex"); if (ifx) ifx.textContent = won(flexValue());
   const ipass = $("#invPassive"); if (ipass) ipass.textContent = fmt(passivePerSec() * 60) + "원/분" + (boosterActive() ? " ⚡2배" : "");
   const ibots = $("#invBots"); if (ibots) ibots.textContent = fmt(botPerSec() * 60) + "원/분";
   $("#invCost").textContent = won(cost);
@@ -2730,9 +2862,23 @@ function updateInvestLive(){
 
 /* ---------------- 거래내역 ---------------- */
   let histSide = "all";
+/* 상장폐지된 종목도 이름을 잃지 않게 */
+function tradeName(t){
+  const code = t && t.code;
+  const s = BY_CODE[code];
+  if (s) return s.name;
+  if (t && t.name) return t.name;
+  const d = (state.delisted || []).find(x => x.code === code);
+  return d ? d.name : String(code || "");
+}
+function tradeIsDelisted(t){
+  if (!t) return false;
+  return t.kind === "delist" || (!!t.code && !BY_CODE[t.code]);
+}
 function renderHistory(){
   const box = $("#histBody");
-  let arr = state.trades.filter(t => t && (BY_CODE[t.code] || t.kind === "delist"));
+  /* 상장폐지된 종목의 매수/매도도 종목명과 함께 계속 보여준다(손실 근거가 사라지지 않게) */
+  let arr = state.trades.filter(t => t && t.code);
   if (histSide !== "all"){
     const allow = histSide === "buy" ? ["buy", "long"] : ["sell", "short", "close"];
     arr = arr.filter(t => allow.indexOf(t.side) >= 0);
@@ -2760,7 +2906,7 @@ function renderHistory(){
     const feeTxt = t.fee ? (" · 수수료 " + fmt(t.fee) + "원") : "";
     html += '<div class="trade-row">'
       + '<div class="side-badge ' + badge + '">' + lbl + '</div>'
-      + '<div class="t"><b>' + (BY_CODE[t.code] ? BY_CODE[t.code].name : (t.name || t.code)) + (t.lev ? ' <span style="color:var(--sub2);font-size:10.5px;font-weight:800">' + t.lev + 'x</span>' : '') + '</b><span>' + line + feeTxt + ' · ' + hhmmss(t.t) + '</span></div>'
+      + '<div class="t"><b>' + tradeName(t) + (t.lev ? ' <span style="color:var(--sub2);font-size:10.5px;font-weight:800">' + t.lev + 'x</span>' : '') + (tradeIsDelisted(t) ? ' <span style="color:var(--sub2);font-size:10px;font-weight:800">폐지</span>' : '') + '</b><span>' + line + feeTxt + ' · ' + hhmmss(t.t) + '</span></div>'
       + '<div class="amt">' + fmt(t.total) + '원</div>'
       + '</div>';
   });
@@ -3043,7 +3189,14 @@ function finishOrder(){
 }
 
 function pushTrade(t){
-  state.trades.unshift({ id: Date.now() + "-" + Math.random().toString(36).slice(2,7), t: Date.now(), ...t });
+  const s = BY_CODE[t.code];
+  const rec = { id: Date.now() + "-" + Math.random().toString(36).slice(2,7), t: Date.now(), ...t };
+  if (!rec.name) rec.name = s ? s.name : String(t.code || "");
+  state.trades.unshift(rec);
+  if (state.challenge && rec.code){
+    if (!Array.isArray(state.challenge.touched)) state.challenge.touched = [];
+    if (state.challenge.touched.indexOf(rec.code) < 0) state.challenge.touched.push(rec.code);
+  }
   if (state.trades.length > 300) state.trades.length = 300;
   renderHistory();
 }
@@ -3105,26 +3258,36 @@ function resetCountOf(){
 }
 function resetLeft(){ return Math.max(0, resetMax() - resetCountOf()); }
 function isResetBroke(){ return totalAsset() < RESET_BROKE_LIMIT; }
-function canResetAccount(){ return resetLeft() > 0 && isResetBroke(); }
+function canResetAccount(){
+  if (state.challenge) return false;    // 챌린지 중엔 보관해 둔 본계좌를 건드리지 않는다
+  return resetLeft() > 0 && isResetBroke();
+}
 function updateResetButton(){
   const b = $("#resetBtn");
   const left = resetLeft();
   const max = resetMax();
+  const inChal = !!state.challenge;
   if (b){
-    b.textContent = "계좌 초기화 (남은 횟수 " + left + "/" + max + ")";
+    b.textContent = inChal ? "계좌 초기화 (챌린지 중 사용 불가)" : "계좌 초기화 (남은 횟수 " + left + "/" + max + ")";
     b.classList.toggle("off", !canResetAccount());
   }
   const hint = $("#resetHint");
   if (hint){
-    hint.textContent = left <= 0
-      ? "계좌 초기화 횟수를 모두 사용했어요 (" + max + "/" + max + ")"
-      : (isResetBroke()
-        ? "지금 초기화하면 예수금 1,000만원으로 복구돼요"
-        : "돈이 부족할 때만 초기화할 수 있어요 · 총자산 " + shortWon(RESET_BROKE_LIMIT) + "원 미만");
+    hint.textContent = inChal
+      ? "챌린지 중엔 계좌 초기화를 할 수 없어요 · 원래 계좌는 안전하게 보관 중이에요"
+      : (left <= 0
+        ? "계좌 초기화 횟수를 모두 사용했어요 (" + max + "/" + max + ")"
+        : (isResetBroke()
+          ? "지금 초기화하면 예수금 1,000만원으로 복구돼요"
+          : "돈이 부족할 때만 초기화할 수 있어요 · 총자산 " + shortWon(RESET_BROKE_LIMIT) + "원 미만"));
   }
 }
 
 function openReset(){
+  if (state.challenge){
+    toast("챌린지 중엔 계좌 초기화를 할 수 없어요");
+    return;
+  }
   if (resetLeft() <= 0){
     toast("계좌 초기화 횟수를 모두 사용했어요 (" + resetMax() + "/" + resetMax() + ")");
     return;
@@ -3425,13 +3588,16 @@ function spawnRumor(manual){
   if (!manual && inputBusy()) return null;
   if (activeRumors().length >= 2) { if (manual) toast("이미 확인할 속보가 있어요"); return null; }
   const busy = activeRumors().map(r => r.title);
-  const pool = RUMORS.filter(t => !busy.includes(t.title));
+  const pool = RUMORS.filter(t => !busy.includes(t.title) && BY_CODE[t.code]);
+  if (!pool.length) return null;
   const tpl = pool[Math.floor(Math.random() * pool.length)];
   const r = {
     id: "r" + now + Math.floor(Math.random() * 999),
     code: tpl.code, dir: tpl.dir, title: tpl.title, src: tpl.src,
     at: now, choice: null, pick: null, stake: null, settle: null,
-    checked: false, resolvesAt: 0, done: false, real: null, correct: null,
+    checked: false, resolvesAt: 0, done: false,
+    real: Math.random() < 0.5,   // 생성 시점에 사실/찌라시를 미리 확정 — 체크·정보상이 먼저 와도 정확하게
+    correct: null,
     expiresAt: now + RUMOR_TTL
   };
   state.rumors.unshift(r);
@@ -3449,9 +3615,10 @@ function chooseRumor(id, dir){
   if (!r || r.done || r.choice) return;
   r.choice = dir === "down" ? "down" : "up";
   r.pick = r.choice;
-  r.real = Math.random() < 0.5;
+  if (r.real !== true && r.real !== false) r.real = Math.random() < 0.5;   // 예전 저장값 호환
   r.resolvesAt = Date.now() + RUMOR_RESOLVE[0] + Math.random() * (RUMOR_RESOLVE[1] - RUMOR_RESOLVE[0]);
   noteInput();
+  missionComplete("rumor");
   renderRumors(); save(true);
 }
 function factCheckRumor(id){
@@ -3459,8 +3626,9 @@ function factCheckRumor(id){
   if (!r || r.done || r.checked) return;
   r.checked = true;
   noteInput();
+  if (r.real !== true && r.real !== false) r.real = Math.random() < 0.5;   // 예전 저장값 호환
   const honest = Math.random() < 0.75;
-  const real = honest ? r.real === null ? Math.random() < 0.5 : r.real : Math.random() < 0.5;
+  const real = honest ? r.real : !r.real;
   const up = real ? r.dir > 0 : r.dir < 0;
   r.hint = up
     ? "취재진 2명이 교차 확인 → 오를 쪽 가능성 높음"
@@ -3516,6 +3684,7 @@ function settleRumorStake(r){
 function resolveRumor(r){
   r.done = true;
   const s = BY_CODE[r.code];
+  if (!s){ toast("📢 종목이 상장폐지되어 속보가 종료됐어요"); save(!SILENT); return; }
   const mag = (0.08 + Math.random() * 0.10) * (r.real ? 1 : -1) * r.dir;
   const before = state.prices[r.code];
   state.prices[r.code] = snap(clamp(before * (1 + mag), priceFloor(s), priceCeil(s)));
@@ -3526,12 +3695,25 @@ function resolveRumor(r){
   settleRumorStake(r);
   if (r.choice){
     r.correct = rumorCorrect(r);
+    const st = state.stats || (state.stats = {});
     if (r.correct){
-      state.stats.rumorHits = (state.stats.rumorHits || 0) + 1;
+      st.rumorHits = (st.rumorHits || 0) + 1;
+      st.rumorStreak = (st.rumorStreak || 0) + 1;
+      st.rumorBest = Math.max(st.rumorBest || 0, st.rumorStreak);
+      r.streak = st.rumorStreak;
       unlock("rumor");
-      toast("🔮 판단 적중! " + s.name + " " + pctStr(mag * 100));
+      /* 연승 보너스 — 2연승부터 적중 이익의 10%×(연승-1), 최대 5연승분 */
+      let bonus = 0;
+      if (st.rumorStreak >= 2 && r.settle && r.settle.pnl > 0){
+        bonus = Math.round(r.settle.pnl * 0.1 * Math.min(5, st.rumorStreak - 1));
+        if (bonus > 0){ state.cash += bonus; state.deposited += bonus; r.streakBonus = bonus; }
+      }
+      toast("🔮 판단 적중! " + s.name + " " + pctStr(mag * 100)
+        + (st.rumorStreak >= 2 ? " · 🔥 " + st.rumorStreak + "연승" + (bonus > 0 ? " 보너스 +" + shortWon(bonus) : "") : ""));
     } else {
-      toast("😵 판단 실패… " + s.name + " " + pctStr(mag * 100));
+      const broken = st.rumorStreak || 0;
+      st.rumorStreak = 0;
+      toast("😵 판단 실패… " + s.name + " " + pctStr(mag * 100) + (broken >= 2 ? " · " + broken + "연승 종료" : ""));
     }
   } else {
     toast("📢 " + s.name + " " + pctStr(mag * 100) + " · " + (r.real ? "찌라시가 사실로" : "찌라시로 판명"));
@@ -3578,6 +3760,7 @@ function openPosition(code, side, lev, qty, price){
   const s = BY_CODE[code];
   toast((side === "long" ? "🔴 롱 " : "🔵 숏 ") + lev + "x 진입 · " + s.name + " " + fmt(qty) + "주 · 수수료 " + won(fee));
   unlock("first");
+  if (lev >= 2 || side === "short") missionComplete("lev");
   save(true);
   return true;
 }
@@ -3634,10 +3817,123 @@ const CHALS = {
   crash: { id: "crash", e: "🌧️", n: "폭락장 생존", d: "폭락장 3분. 자산을 지키면서 반등을 노려보세요.", ms: 180000 }
 };
 function chalActive(){ return !!state.challenge; }
-function startChallenge(kind){
+
+/* ---------- 시드 기반 3분 시장 ----------
+   같은 시드면 친구와 완전히 같은 시세로 겨룰 수 있게, 챌린지의 3분 시세를 시작 시점에 미리 계산해 둔다. */
+const CHAL_TICKS = Math.round(CHALS.rally.ms / TICK_MS);
+function mulberry32(a){
+  let x = (Math.abs(Math.floor(a)) || 1) >>> 0;
+  return function(){
+    x = (x + 0x6D2B79F5) >>> 0;
+    let t = x;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function gaussSeeded(rng){
+  let u = 0, v = 0;
+  while (u === 0) u = rng();
+  while (v === 0) v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+function buildChallengeMult(seed, kind){
+  const rng = mulberry32(seed);
+  const mult = {};
+  const drift = kind === "crash" ? -0.0016 : 0.0009;   // 틱당 로그 드리프트
+  const volMul = kind === "crash" ? 1.35 : 1.2;
+  STOCKS.forEach(s => {
+    const bv = Math.min(baseVolOf(s) * volMul, s.hot ? 0.28 : 0.10);
+    const arr = new Array(CHAL_TICKS);
+    let lp = 0;
+    for (let i = 0; i < CHAL_TICKS; i++){
+      arr[i] = Math.exp(lp);
+      lp += drift + bv * gaussSeeded(rng) - 0.5 * bv * bv;
+    }
+    mult[s.code] = arr;
+  });
+  return mult;
+}
+function challengeTitle(rate){
+  if (rate >= 50) return "🔥 전설의 개미";
+  if (rate >= 30) return "🏆 챌린지 왕";
+  if (rate >= 10) return "🚀 상승 탑승";
+  if (rate >= 0) return "🐜 선방한 개미";
+  if (rate >= -20) return "😵 물린 개미";
+  return "💀 계좌 녹인 개미";
+}
+function challengeSummary(ch, rate){
+  let best = null;
+  STOCKS.forEach(s => {
+    const base = ch.startPrices[s.code];
+    const cur = state.prices[s.code];
+    if (!(base > 0) || !(cur > 0)) return;
+    const pct = ((cur - base) / base) * 100;
+    if (!best || pct > best.pct) best = { code: s.code, name: s.name, pct, mine: false };
+  });
+  const touched = Array.isArray(ch.touched) ? ch.touched : [];
+  const mine = touched.map(c => {
+    const base = ch.startPrices[c];
+    const cur = state.prices[c] || base;
+    const name = BY_CODE[c] ? BY_CODE[c].name : c;
+    return { code: c, name, pct: base > 0 ? ((cur - base) / base) * 100 : 0, mine: true };
+  }).filter(x => x.name).sort((a, b) => b.pct - a.pct)[0];
+  return { best: mine || best, title: challengeTitle(rate) };
+}
+function challengeShareCode(ch, rate){
+  const payload = { v: 1, k: ch.kind, s: ch.seed, r: Math.round(rate * 100) / 100, n: state.nick || "개미" };
+  return "MGCHAL" + b64e(JSON.stringify(payload));
+}
+function challengeShareText(ch, rate){
+  const sum = challengeSummary(ch, rate);
+  return "🐜 모의개미 3분 챌린지 · " + (state.nick || "개미") + " " + (rate > 0 ? "+" : "") + rate.toFixed(2) + "% (" + sum.title + ")\n같은 3분 시장에서 겨뤄보세요!";
+}
+function shareChallenge(ch, rate){
+  const code = challengeShareCode(ch, rate);
+  const url = location.origin + location.pathname + "?chal=" + encodeURIComponent(code);
+  const txt = challengeShareText(ch, rate) + "\n" + url;
+  if (navigator.share){
+    try { navigator.share({ title: "모의개미 3분 챌린지", text: challengeShareText(ch, rate), url }); return; }
+    catch(e){ /* 아래 복사로 떨어짐 */ }
+  }
+  if (!copyText(txt)) toast("공유를 지원하지 않는 환경이에요 · 도전장 코드를 복사해 주세요");
+}
+function chalResultHTML(ch, rate, profit, end){
+  const sum = challengeSummary(ch, rate);
+  const b = sum.best;
+  const ch2 = CHALS[ch.kind];
+  const duel = ch.duel;
+  let duelHTML = "";
+  if (duel){
+    const win = rate > duel.rate + 0.0001, tie = Math.abs(rate - duel.rate) <= 0.0001;
+    duelHTML = '<div class="sc-duel ' + (win ? "win" : tie ? "" : "lose") + '">'
+      + (tie
+        ? "🤝 " + duel.nick + "님과 동점이에요! (" + rate.toFixed(2) + "%)"
+        : win
+          ? "🏆 " + duel.nick + "님(" + duel.rate.toFixed(2) + "%)을 이겼어요!"
+          : "😤 " + duel.nick + "님 " + duel.rate.toFixed(2) + "% · 내 기록 " + (rate > 0 ? "+" : "") + rate.toFixed(2) + "%")
+      + '</div>';
+  }
+  return '<div class="share-card">'
+    + '<div class="sc-top">🐜 모의개미 · 3분 챌린지 결과</div>'
+    + '<div class="sc-nick">' + (state.nick || "개미") + '</div>'
+    + '<div class="sc-rate" style="color:' + (rate > 0 ? "#FF9C93" : rate < 0 ? "#9DBBFF" : "#EDF2F5") + '">' + (rate > 0 ? "+" : "") + rate.toFixed(2) + '%</div>'
+    + '<div class="sc-title">' + sum.title + ' · ' + ch2.e + " " + ch2.n + '</div>'
+    + '<div class="sc-rows">'
+    + '<div class="sc-row"><span>' + (b && b.mine ? "내 최고 종목" : "시장 최고 종목") + '</span><b>' + (b ? b.name + " " + pctStr(b.pct) : "-") + '</b></div>'
+    + '<div class="sc-row"><span>최종 자산</span><b>' + bigWon(end) + '</b></div>'
+    + '<div class="sc-row"><span>수익금</span><b>' + (profit > 0 ? "+" : "") + bigWon(profit) + '</b></div>'
+    + '<div class="sc-row"><span>최고 기록</span><b>' + (state.bests[ch.kind] ? (state.bests[ch.kind].rate > 0 ? "+" : "") + state.bests[ch.kind].rate.toFixed(2) + "%" : "-") + '</b></div>'
+    + '</div>' + duelHTML + '</div>';
+}
+
+function startChallenge(kind, seed, duel){
   if (state.challenge) return;
   const c = CHALS[kind];
   if (!c) return;
+  const sd = Number(seed) > 0 ? Math.floor(Number(seed)) : (1 + Math.floor(Math.random() * 2147483000));
+  const startPrices = {};
+  STOCKS.forEach(s => { startPrices[s.code] = safePx(state.prices[s.code], snap(s.base)); });
   state.free = {
     cash: state.cash, deposited: state.deposited,
     holdings: state.holdings, positions: state.positions, trades: state.trades, pending: state.pending
@@ -3648,14 +3944,24 @@ function startChallenge(kind){
   state.positions = [];
   state.trades = [];
   state.pending = [];
-  state.challenge = { kind, endsAt: Date.now() + c.ms, startAt: Date.now(), startAsset: 10000000 };
+  state.rumors = [];          // 시드 대결에서는 속보가 시세를 흔들지 않는다
+  state.crash = null;
+  state.relistAt = 0;
+  state.challenge = {
+    kind, seed: sd, endsAt: Date.now() + c.ms, startAt: Date.now(), startAsset: 10000000,
+    startPrices, mult: buildChallengeMult(sd, kind), duel: duel || null, touched: []
+  };
+  state.opens = Object.assign({}, startPrices);
+  state.opensAt = Math.floor(Date.now() / OPEN_REFRESH_MS) * OPEN_REFRESH_MS;
   equityHist = [];
   save(true);
   closeSheet();
-  renderInvest(); renderHome(); renderChallenge(); updateChallengeBar();
+  renderInvest(); renderHome(); renderChallenge(); updateChallengeBar(); renderDuel(); renderRumors();
   showScreen("home");
   toast(c.e + " " + c.n + " 시작! 3분 타이머가 돌아가요");
 }
+
+let lastChalResult = null;
 function endChallenge(aborted, quiet){
   const ch = state.challenge;
   if (!ch) return;
@@ -3664,12 +3970,15 @@ function endChallenge(aborted, quiet){
   const rate = (profit / ch.startAsset) * 100;
   if (!state.bests) state.bests = {};
   const prev = state.bests[ch.kind];
-  const isBest = !prev || rate > prev.rate;
+  /* 첫 판 0.00%에 '신기록!'이 뜨던 어색함 정리 — 기록이 있을 때만 신기록 */
+  const isBest = prev ? rate > prev.rate + 0.0001 : rate > 0;
   if (isBest) state.bests[ch.kind] = { rate, profit, at: Date.now() };
   if (!aborted){
     unlock("chal");
     if (rate >= 30) unlock("chal30");
   }
+  const html = aborted ? "" : chalResultHTML(ch, rate, profit, end);
+  lastChalResult = aborted ? null : { ch, rate, profit, end };
   const free = state.free || null;
   if (free){
     state.cash = free.cash; state.deposited = free.deposited;
@@ -3679,23 +3988,17 @@ function endChallenge(aborted, quiet){
   state.free = null;
   state.challenge = null;
   equityHist = [];
+  ensureOpens(Date.now(), true);
   save(true);
-  renderHome(); renderInvest(); renderHistory(); renderChallenge(); updateChallengeBar();
+  renderHome(); renderInvest(); renderHistory(); renderChallenge(); updateChallengeBar(); renderDuel(); renderRumors();
   if (!aborted){
-    const c = CHALS[ch.kind];
-    $("#sheet").innerHTML =
-      '<div class="result-hero">'
-      + '<div class="e">' + (rate >= 30 ? "🏆" : rate >= 0 ? "🐜" : "😵") + '</div>'
-      + '<div class="big ' + cls(rate) + '">' + (rate > 0 ? "+" : "") + rate.toFixed(2) + '%</div>'
-      + '<div class="lb">' + c.n + ' 최종 수익률</div>'
-      + '</div>'
-      + '<div class="kv"><span class="k">최종 자산</span><span class="v">' + bigWon(end) + '</span></div>'
-      + '<div class="kv"><span class="k">수익금</span><span class="v ' + cls(profit) + '">' + (profit > 0 ? "+" : "") + bigWon(profit) + '</span></div>'
-      + '<div class="kv"><span class="k">최고 기록</span><span class="v">' + state.bests[ch.kind].rate.toFixed(2) + '%</span></div>'
-      + '<button class="go" id="chalAgain">한 번 더</button>'
+    $("#sheet").innerHTML = html
+      + '<button class="go" id="chalShare">📣 친구에게 자랑하기</button>'
+      + '<div class="share-btns"><button id="chalCopy">도전장 코드 복사</button><button id="chalAgain2" class="prim">한 번 더</button></div>'
       + '<button class="cancel" id="sheetCancel">닫기</button>';
     $("#scrim").classList.add("show");
-    if (isBest) toast("🎉 신기록! " + rate.toFixed(2) + "%");
+    if (prev && isBest) toast("🎉 신기록! " + rate.toFixed(2) + "%");
+    else if (!prev && rate > 0) toast("🎉 첫 기록! " + rate.toFixed(2) + "%");
   } else if (!quiet) {
     toast("챌린지를 중단했어요 · 원래 계좌로 돌아왔어요");
   }
@@ -3710,6 +4013,112 @@ function updateChallengeBar(){
   const m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);
   $("#cbTime").textContent = m + ":" + String(s).padStart(2, "0");
   $("#cbName").textContent = CHALS[ch.kind].e + " " + CHALS[ch.kind].n + " · " + (totalAsset() >= ch.startAsset ? "+" : "") + (((totalAsset() - ch.startAsset) / ch.startAsset) * 100).toFixed(1) + "%";
+}
+
+/* ---------- 친구 도전장 (같은 시드 = 같은 3분 시장) ---------- */
+const DUEL_KEY = "moeigami_duel_v1";
+let duelPending = null;
+function parseDuel(raw){
+  if (!raw) return null;
+  let v = String(raw).trim();
+  const m = v.match(/[?&]chal=([^&\s]+)/);
+  if (m){ try { v = decodeURIComponent(m[1]); } catch(e) { v = m[1]; } }
+  const i = v.indexOf("MGCHAL");
+  if (i >= 0) v = v.slice(i + 6);
+  v = v.replace(/\s+/g, "");
+  let o = null;
+  try { o = JSON.parse(b64d(v)); } catch(e) { return null; }
+  if (!o || !o.k || !CHALS[o.k]) return null;
+  const sd = Math.floor(Number(o.s));
+  if (!(sd > 0)) return null;
+  return { kind: o.k, seed: sd, rate: Number(o.r) || 0, nick: String(o.n || "친구").slice(0, 12), at: Date.now() };
+}
+function saveDuel(){
+  try {
+    if (duelPending) localStorage.setItem(DUEL_KEY, JSON.stringify(duelPending));
+    else localStorage.removeItem(DUEL_KEY);
+  } catch(e) {}
+}
+function loadDuel(){
+  try {
+    const raw = localStorage.getItem(DUEL_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (!d || !CHALS[d.kind] || !(Number(d.seed) > 0)) return null;
+    if (Date.now() - (Number(d.at) || 0) > 7 * 24 * 3600 * 1000) return null;
+    return { kind: d.kind, seed: Math.floor(Number(d.seed)), rate: Number(d.rate) || 0, nick: String(d.nick || "친구").slice(0, 12), at: Number(d.at) || Date.now() };
+  } catch(e) { return null; }
+}
+function renderDuel(){
+  const wrap = $("#duelWrap");
+  if (!wrap) return;
+  if (!duelPending || state.challenge){ wrap.innerHTML = ""; return; }
+  const d = duelPending, c = CHALS[d.kind];
+  wrap.innerHTML = '<div class="duel-banner"><b>📣 ' + d.nick + '님의 도전장</b>'
+    + '<span>' + c.e + " " + c.n + ' · 상대 기록 ' + (d.rate > 0 ? "+" : "") + d.rate.toFixed(2) + '%<br>같은 시세(시드 ' + d.seed + ')로 3분간 겨뤄요.</span>'
+    + '<div class="db-btns"><button class="prim" data-duel-go="1">도전장 수락</button><button data-duel-skip="1">나중에</button></div></div>';
+}
+function openDuelCodeSheet(){
+  $("#sheet").innerHTML =
+    '<h3>도전장 코드 넣기</h3>'
+    + '<p>친구가 보낸 도전장 코드(MGCHAL…)나 링크를 붙여넣으면 같은 3분 시장에 도전해요.</p>'
+    + '<textarea class="code-box" id="duelCodeBox" placeholder="MGCHAL..."></textarea>'
+    + '<button class="go" id="duelCodeGo" style="margin-top:12px">도전장 받기</button>'
+    + '<button class="cancel" id="sheetCancel">닫기</button>';
+  $("#scrim").classList.add("show");
+}
+function acceptDuelCode(raw){
+  const d = parseDuel(raw);
+  if (!d){ toast("도전장 코드를 읽을 수 없어요"); return; }
+  duelPending = d;
+  saveDuel();
+  closeSheet();
+  renderDuel();
+  renderChallenge();
+  toast("📣 " + d.nick + "님의 도전장을 받았어요 · 위에서 수락하면 시작해요");
+}
+function bootDuel(){
+  let fromUrl = null;
+  try { fromUrl = parseDuel(new URLSearchParams(location.search).get("chal")); } catch(e) {}
+  if (fromUrl){
+    duelPending = fromUrl;
+    saveDuel();
+    try { history.replaceState(null, "", location.pathname); } catch(e) {}
+    setTimeout(() => { toast("📣 " + fromUrl.nick + "님의 도전장이 도착했어요 · 챌린지 탭에서 확인"); }, 1200);
+  } else {
+    duelPending = loadDuel();
+  }
+  renderDuel();
+}
+
+/* ---------- 닉네임 변경 ---------- */
+function escapeAttr(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function cleanNick(v){
+  return String(v == null ? "" : v).replace(/[<>&"'`]/g, "").replace(/\s+/g, " ").trim().slice(0, 12);
+}
+function openNickSheet(){
+  $("#sheet").innerHTML =
+    '<div class="nicksheet"><h3>닉네임 변경</h3>'
+    + '<p>랭킹·방명록·챌린지 결과 카드에 이 이름이 표시돼요. (2~12자)</p>'
+    + '<input id="nickInput" maxlength="12" value="' + escapeAttr(state.nick || "개미") + '" placeholder="개미" autocomplete="off">'
+    + '<button class="go" id="nickGo">저장</button>'
+    + '<button class="cancel" id="sheetCancel">닫기</button></div>';
+  $("#scrim").classList.add("show");
+  const inp = $("#nickInput");
+  if (inp){ inp.focus(); inp.select(); }
+}
+function saveNick(){
+  const inp = $("#nickInput");
+  const v = cleanNick(inp ? inp.value : "");
+  if (v.length < 1){ toast("닉네임을 입력해 주세요"); return; }
+  state.nick = v;
+  save(true);
+  closeSheet();
+  renderRank();
+  renderVisit();
+  toast("✏️ 닉네임을 " + v + "(으)로 바꿨어요");
 }
 
 /* ---------------- 랭킹 ---------------- */
@@ -3879,13 +4288,13 @@ function buyItem(id){
   if (!state.title) state.title = it.ti || it.n + " 수집가";
   unlock("flex");
   if (id === "e5") unlock("building");
-  if (it.c === "food"){
-    state.hunger = clamp((state.hunger == null ? 0 : state.hunger) + feedGain(it), 0, 100);
-    state.hungerAt = Date.now();
-  }
+  /* 먹거리는 사는 순간이 아니라 '밥 먹이기'로 먹일 때만 포만감이 오른다(이중 지급 방지) */
   save(true);
   renderShop(); renderHunger(); updateHomeLive(); updateInvestLive();
-  toast("🛍️ " + it.n + " 구매 완료 · 플렉스 컬렉션에 추가");
+  missionComplete("shop");
+  toast(it.c === "food"
+    ? "🛍️ " + it.n + " 구매 완료 · 밥 먹이기로 먹여요 (+" + feedGain(it) + "%)"
+    : "🛍️ " + it.n + " 구매 완료 · 플렉스 컬렉션에 추가");
 }
 
 /* ================= 렌더 ================= */
@@ -3893,6 +4302,7 @@ function renderRumors(){
   const box = $("#rumorList");
   if (!box) return;
   renderRumorButton();
+  renderStreak();
   const list = (state.rumors || []).filter(r => !r.done).slice(0, 2);
   const doneRecent = (state.rumors || []).filter(r => r.done).slice(0, 1);
   const show = list.length ? list : doneRecent;
@@ -3925,7 +4335,7 @@ function rumorCard(r){
           + '<b>' + (se.pnl >= 0 ? "+" : "") + shortWon(se.pnl) + '원 (' + pctStr(se.ret) + ')</b></div>';
       }
     }
-    return '<div class="rumor done"><div class="rhead">🔔 속보 결과 · ' + s.name + '</div>'
+    return '<div class="rumor done"><div class="rhead">🔔 속보 결과 · ' + s.name + (r.streak >= 2 ? ' · 🔥 ' + r.streak + '연승' : '') + '</div>'
       + '<div class="rtitle" style="font-size:13.5px">' + r.title + '</div>' + body + '</div>';
   }
   const meta = '<div class="rmeta">' + s.name + ' · 출처 ' + r.src
@@ -4114,7 +4524,9 @@ function shopCard(it){
     + '<span class="tg">' + it.t + '</span>'
     + '<div class="pr">' + shortWon(it.p) + '원'
     + (it.c === "food" ? ' <span class="pill brand" style="font-size:9.5px;padding:2px 6px">+' + feedGain(it) + '% 🍖</span>' : '') + '</div>'
-    + (it.c === "food" ? '' : '<div class="pm">배치 시 +' + shortWon(itemPerMin(it)) + '원/분 (5%)</div>')
+    + (it.c === "food" ? '<div class="pm" style="color:var(--sub);font-weight:700">사면 인벤토리로 · 밥 먹이기 1회</div>'
+      : it.c === "estate" ? '<div class="pm">🏠 집 업그레이드 · 보유만 해도 총자산 반영</div>'
+      : '<div class="pm">배치 시 +' + shortWon(itemPerMin(it)) + '원/분 (5%)</div>')
     + '<button data-buy="' + it.id + '" class="' + (can ? "" : "owned") + '">' + (own ? "한 개 더" : "구매") + '</button>'
     + '</div>';
 }
@@ -4139,6 +4551,15 @@ const PREMIUM = [
 const PREMIUM_BY_ID = {};
 PREMIUM.forEach(p => PREMIUM_BY_ID[p.id] = p);
 const PREMIUM_TRIAL_MS = 10 * 60 * 1000;   // 광고 체험 10분
+const BOOST_TRIAL_DAILY = 3;                // 부스터 광고 무료 체험 하루 횟수(유료 상품 가치 보존)
+function boostTrialState(){
+  const day = adToday();
+  if (!state.boostTrial || typeof state.boostTrial !== "object" || state.boostTrial.day !== day){
+    state.boostTrial = { day, count: 0 };
+  }
+  return state.boostTrial;
+}
+function boostTrialLeft(){ return Math.max(0, BOOST_TRIAL_DAILY - (boostTrialState().count || 0)); }
 
 function premiumState(){
   if (!state.premium || typeof state.premium !== "object") state.premium = { rumorTickets: 0 };
@@ -4186,7 +4607,7 @@ function renderPremium(){
         + '<div class="pm-side"><div class="pm-p">' + p.price.toLocaleString("ko-KR") + '원</div>'
         + '<button class="pending" data-premium="' + p.id + '">준비 중</button></div></div>').join("")
     + '<div class="pm-note">· 정식 결제는 사업자 등록 완료 후 오픈 예정이에요. 지금은 결제되지 않습니다.<br>'
-    + '· ⚡ 부스터 상품은 광고를 끝까지 보면 10분 무료 체험돼요.</div>';
+    + '· ⚡ 부스터 상품은 광고를 끝까지 보면 10분 무료 체험돼요 (오늘 남은 무료 체험 ' + boostTrialLeft() + '/' + BOOST_TRIAL_DAILY + '회).</div>';
 }
 function premiumGrantLines(p){
   const g = p.grant || {}, lines = [];
@@ -4199,7 +4620,7 @@ function premiumGrantLines(p){
 function openPremiumSheet(id){
   const p = PREMIUM_BY_ID[id];
   if (!p) return;
-  const canTrial = !!(p.trialMs && !boosterActive());
+  const canTrial = !!(p.trialMs && !boosterActive() && boostTrialLeft() > 0);
   $("#sheet").innerHTML =
     '<div class="pm-sheet"><h3>' + p.e + ' ' + p.n + '</h3>'
     + '<div class="pm-price">' + p.price.toLocaleString("ko-KR") + '원</div>'
@@ -4207,23 +4628,27 @@ function openPremiumSheet(id){
     + '<div class="pm-open">💎 <b>사업자 등록 완료 후 정식 결제 오픈 예정!</b><br>'
     + '지금은 결제가 진행되지 않아요. 금액이 청구되지 않고 아이템도 지급되지 않습니다.</div>'
     + (canTrial ? '<button class="pm-trial" id="premTrial" data-trial="' + p.id + '">📺 광고 보고 10분 무료 체험</button>' : '')
+    + (p.trialMs && !canTrial && !boosterActive() ? '<div class="pm-open" style="margin-top:10px">📺 오늘 부스터 무료 체험을 다 썼어요 (' + BOOST_TRIAL_DAILY + '/' + BOOST_TRIAL_DAILY + ') · 내일 다시 채워져요</div>' : '')
     + (p.trialMs && boosterActive() ? '<div class="pm-open" style="margin-top:10px">⚡ 이미 2배 부스터가 켜져 있어요 · ' + boosterClock() + ' 남음</div>' : '')
     + '<button class="cancel" id="sheetCancel">닫기</button></div>';
   $("#scrim").classList.add("show");
   noteInput();
 }
 function grantPremiumTrial(id){
+  const bt = boostTrialState();
+  bt.count = (bt.count || 0) + 1;
   grantBooster(PREMIUM_TRIAL_MS);
   trackEvent("premium_trial_started", { id });
   closeSheet();
   renderPremium(); renderShop(); updateHomeLive(); updateInvestLive();
-  toast("⚡ 수익 2배 부스터 10분 체험 시작 · " + boosterClock() + " 남음");
+  toast("⚡ 수익 2배 부스터 10분 체험 시작 · " + boosterClock() + " 남음 · 오늘 남은 체험 " + boostTrialLeft() + "회");
 }
 function startPremiumTrial(id){
   const p = PREMIUM_BY_ID[id];
   if (!p) return;
   if (!p.trialMs){ toast("이 상품은 정식 오픈 후 이용할 수 있어요"); return; }
   if (boosterActive()){ toast("이미 부스터가 켜져 있어요 · " + boosterClock() + " 남음"); return; }
+  if (boostTrialLeft() <= 0){ toast("오늘 부스터 무료 체험을 다 썼어요 (하루 " + BOOST_TRIAL_DAILY + "회) · 내일 다시 채워져요"); return; }
   requestRewardedAd(() => grantPremiumTrial(id));
 }
 /* 실제 결제 후 지급 — 브릿지의 processProductGrant에서만 호출된다 */
@@ -4258,7 +4683,7 @@ function purchasePremium(id){
 function renderColl(){
   const box = $("#collList");
   if (!box) return;
-  const owned = Object.keys(state.flex || {}).filter(id => ITEM_BY_ID[id] && ITEM_BY_ID[id].c !== "estate");
+  const owned = Object.keys(state.flex || {}).filter(id => ITEM_BY_ID[id]);
   const cnt = $("#collCount");
   if (cnt) cnt.textContent = owned.length + "종 · " + shortWon(flexTotal()) + "어치";
   if (!owned.length){
@@ -4269,7 +4694,8 @@ function renderColl(){
   box.innerHTML = owned.map(id => {
     const it = ITEM_BY_ID[id], n = state.flex[id];
     return '<div class="coll-row"><div class="e">' + it.e + '</div>'
-      + '<div class="nm">' + it.n + '<span>' + shortWon(it.p) + '원' + (it.ti ? ' · 칭호 ' + it.ti : '') + '</span></div>'
+      + '<div class="nm">' + it.n + '<span>' + shortWon(it.p) + '원'
+      + (it.c === "estate" ? ' · 집 업그레이드' : '') + (it.ti ? ' · 칭호 ' + it.ti : '') + '</span></div>'
       + '<div class="cnt">' + n + '개</div></div>';
   }).join("");
 }
@@ -4277,6 +4703,7 @@ function renderColl(){
 function renderChallenge(){
   const box = $("#chalBody");
   if (!box) return;
+  renderDuel();
   if (state.challenge){
     const c = CHALS[state.challenge.kind];
     if (activeTab !== "challenge") return;
@@ -4302,7 +4729,9 @@ function renderChallenge(){
     +   '<div class="best-row"><span>🚀 3분 불리기</span><span class="v ' + (b1 ? cls(b1.rate) : "") + '">' + (b1 ? (b1.rate > 0 ? "+" : "") + b1.rate.toFixed(2) + "%" : "기록 없음") + '</span></div>'
     +   '<div class="best-row"><span>🌧️ 폭락장 생존</span><span class="v ' + (b2 ? cls(b2.rate) : "") + '">' + (b2 ? (b2.rate > 0 ? "+" : "") + b2.rate.toFixed(2) + "%" : "기록 없음") + '</span></div>'
     + '</div>'
-    + '<div class="chal-card"><h4>이렇게 굴려요</h4><p>· 시세 탭에서 종목을 고르고 롱·숏·레버리지로 진입<br>· 속보가 뜨면 방향을 판단해 미리 베팅<br>· 청산가에 닿으면 자동 청산되니 조심</p></div>';
+    + '<div class="chal-card"><h4>이렇게 굴려요</h4><p>· 시세 탭에서 종목을 고르고 롱·숏·레버리지로 진입<br>· 속보가 뜨면 방향을 판단해 미리 베팅<br>· 청산가에 닿으면 자동 청산되니 조심</p></div>'
+    + '<div class="chal-card"><h4>📣 친구와 대결</h4><p>결과 카드에서 <b>도전장</b>을 보내면 친구가 같은 3분 시세로 도전해 기록을 비교할 수 있어요.</p>'
+    + '<button class="start" id="duelCodeBtn" style="background:var(--card2);color:var(--text);border:1px solid var(--line)">도전장 코드 붙여넣기</button></div>';
 }
 function updateChalTime(){
   if (!state.challenge) return;
@@ -4386,7 +4815,7 @@ function renderRoom(){
     const next = HOUSE_STAGES[idx + 1];
     sub.textContent = next ? ("다음 집까지 " + shortWon(next.min - bestHousePrice()) + "원") : "최고 등급의 집이에요";
   }
-  const owned = Object.keys(state.flex || {}).filter(id => ITEM_BY_ID[id] && ITEM_BY_ID[id].c !== "estate");
+  const owned = Object.keys(state.flex || {}).filter(id => ITEM_BY_ID[id]);
   const placed = state.room || {};
   const placedIds = Object.keys(placed).map(k => placed[k]);
   const ro = $("#roomOwned"); if (ro) ro.textContent = owned.length + "개";
@@ -4408,7 +4837,7 @@ function renderRoom(){
         const it = ITEM_BY_ID[id];
         return '<div class="room-item' + (placedIds.indexOf(id) >= 0 ? " placed" : "") + '" data-place="' + id + '">'
           + '<div class="e">' + it.e + '</div><b>' + it.n + '</b>'
-          + (it.c === "food" ? '' : '<span style="display:block;font-size:9.5px;color:var(--brand);font-weight:800;margin-top:2px">+' + shortWon(itemPerMin(it)) + '원/분</span>')
+          + (it.c === "food" ? '' : it.c === "estate" ? '<span style="display:block;font-size:9.5px;color:var(--sub);font-weight:800;margin-top:2px">집 업그레이드</span>' : '<span style="display:block;font-size:9.5px;color:var(--brand);font-weight:800;margin-top:2px">+' + shortWon(itemPerMin(it)) + '원/분</span>')
           + '</div>';
       }).join("");
     }
@@ -4427,6 +4856,7 @@ function placeItem(id){
   if (!free){ toast("자리가 없어요. 하나를 눌러 치우고 놓아보세요"); return; }
   state.room[free] = id;
   save(true); renderRoom();
+  missionComplete("shop");
   toast("🛋️ " + ITEM_BY_ID[id].n + " 배치 완료");
 }
 
@@ -4674,10 +5104,17 @@ function pendingDir(o){
 function fillPending(o, ui){
   state.pending = (state.pending || []).filter(x => x.id !== o.id);
   const s = BY_CODE[o.code];
-  const px = o.limit;
+  if (!s) return;
+  /* 지정가는 '최대 매수가 / 최소 매도가' — 실제 체결은 시장가(현재가)로 하고,
+     현재가가 지정가보다 유리하면 그 유리한 가격으로 체결한다. */
+  const cur = safePx(state.prices[o.code], o.limit);
+  const dir = pendingDir(o);
+  const px = dir === "buy" ? Math.min(cur, o.limit) : Math.max(cur, o.limit);
   if (o.mode === "long1"){
     const fee = feeAmount(o.qty * px, o.side === "buy" ? "buy" : "sell");
     if (o.side === "buy"){
+      const spent = o.qty * px + fee;
+      state.cash += Math.max(0, (o.reserve || 0) - spent);   // 지정가로 잡아둔 금액과의 차액 환급
       const h = state.holdings[o.code] || { qty: 0, avg: 0 };
       const nq = h.qty + o.qty, na = (h.qty * h.avg + o.qty * px) / nq;
       state.holdings[o.code] = { qty: nq, avg: Math.round(na) };
@@ -4688,8 +5125,17 @@ function fillPending(o, ui){
     }
     unlock("first");
   } else {
-    state.cash += o.reserve;
-    openPosition(o.code, sideOfMode(o.mode), levOfMode(o.mode), o.qty, px);
+    const lev = levOfMode(o.mode);
+    const need = Math.round((o.qty * px) / lev) + feeAmount(o.qty * px, "buy");
+    const reserve = o.reserve || 0;
+    state.cash += reserve;
+    if (need > reserve && need - reserve > state.cash){
+      toast("⏰ 예약 취소 · 예수금 부족 (" + s.name + ")");
+      save(!SILENT);
+      if (!SILENT){ renderPending(); updateHomeLive(); if (activeTab === "invest") renderInvest(); }
+      return;
+    }
+    openPosition(o.code, sideOfMode(o.mode), lev, o.qty, px);
   }
   if (ui !== false) toast("⏰ 예약 체결 · " + s.name + " " + fmt(o.qty) + "주 @ " + fmt(px) + "원");  save(!SILENT);
   if (!SILENT){ renderPending(); updateHomeLive(); if (activeTab === "invest") renderInvest(); if (detailCode) updateDetailLive(); }
@@ -5063,6 +5509,112 @@ function feedAnt(){
   toast("🍖 " + it.n + " 먹였어요 · 포만감 +" + gain + "% (" + Math.round(state.hunger) + "%)");
 }
 
+/* ---------------- 연속 출석 스트릭 ---------------- */
+const ATTEND_REWARDS = [1000000, 1500000, 2000000, 3000000, 4000000, 5000000, 10000000];
+const ATTEND_CYCLE = 7;
+function ymd(t){
+  const d = new Date(t);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function attendState(){
+  if (!state.attend || typeof state.attend !== "object") state.attend = { last: "", streak: 0, best: 0, total: 0, lastReward: 0 };
+  return state.attend;
+}
+function attendDay(a){ return ((Math.max(1, a.streak) - 1) % ATTEND_CYCLE) + 1; }
+/* 하루에 한 번 출석 체크 — 연속일이 이어지면 7일차까지 보상이 커지고, 끊기면 1일차로 돌아간다 */
+function checkAttendance(){
+  const a = attendState();
+  const today = adToday();
+  if (a.last === today) return null;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  a.streak = (a.last === ymd(y.getTime())) ? Math.max(1, (a.streak || 0) + 1) : 1;
+  a.last = today;
+  a.total = (a.total || 0) + 1;
+  a.best = Math.max(a.best || 0, a.streak);
+  const day = attendDay(a);
+  const reward = ATTEND_REWARDS[day - 1];
+  a.lastReward = reward;
+  state.cash += reward;
+  state.deposited += reward;
+  save(true);
+  trackEvent("attendance_check", { day, streak: a.streak });
+  return { day, streak: a.streak, reward };
+}
+function renderAttend(){
+  const wrap = $("#attendWrap");
+  if (!wrap) return;
+  const a = attendState();
+  if (!a.last){ wrap.innerHTML = ""; return; }
+  const day = attendDay(a);
+  const reward = ATTEND_REWARDS[day - 1];
+  const next = ATTEND_REWARDS[day % ATTEND_CYCLE];
+  wrap.innerHTML = '<div class="attend-bar"><span class="ab-e">📅</span>'
+    + '<div class="ab-t"><b>' + day + '일차 출석 완료' + (a.streak >= 2 ? ' · 🔥 ' + a.streak + '일 연속' : '') + '</b>'
+    + '<span>오늘 +' + shortWon(reward) + '원 받았어요 · 내일 ' + shortWon(next) + '원</span></div>'
+    + '<div class="ab-dots">' + Array.from({ length: ATTEND_CYCLE }, (_, i) => '<i class="' + (i < day ? 'on' : '') + '"></i>').join("") + '</div></div>';
+}
+
+/* ---------------- 일일 미션 3개 (매일 자정 리셋) ---------------- */
+const MISSIONS = [
+  { id: "rumor", e: "🔔", n: "긴급 속보 1회 참여", d: "오른다·내린다 중 하나 고르기", reward: 1000000, kind: "cash" },
+  { id: "lev",   e: "🚀", n: "2배 이상 레버리지·숏 거래", d: "롱 2x 이상 또는 숏 포지션 진입", reward: 2000000, kind: "cash" },
+  { id: "shop",  e: "🛍️", n: "상점 아이템 1개 사기·배치", d: "플렉스 상점에서 구매하거나 배치", reward: 5 * 60 * 1000, kind: "booster" }
+];
+function missionState(){
+  const day = adToday();
+  if (!state.missions || state.missions.day !== day || !Array.isArray(state.missions.done)){
+    state.missions = { day, done: [], all: false };
+  }
+  return state.missions;
+}
+function missionComplete(id){
+  const m = missionState();
+  if (m.done.indexOf(id) >= 0) return false;
+  const def = MISSIONS.find(x => x.id === id);
+  if (!def) return false;
+  m.done.push(id);
+  if (def.kind === "booster"){
+    grantBooster(def.reward);
+    toast("🎯 미션 완료 · " + def.n + " → ⚡ 수익 2배 5분");
+  } else {
+    state.cash += def.reward;
+    state.deposited += def.reward;
+    toast("🎯 미션 완료 · " + def.n + " → +" + shortWon(def.reward) + "원");
+  }
+  if (m.done.length >= MISSIONS.length && !m.all){
+    m.all = true;
+    const bonus = 5000000;
+    state.cash += bonus; state.deposited += bonus;
+    toast("🏅 오늘의 미션 올클리어! 보너스 +" + shortWon(bonus) + "원");
+  }
+  save(true);
+  trackEvent("mission_complete", { id });
+  renderMissions();
+  if (activeTab === "home") updateHomeLive();
+  return true;
+}
+function renderMissions(){
+  const wrap = $("#missionWrap");
+  if (!wrap) return;
+  const m = missionState();
+  wrap.innerHTML = '<div class="sec-title" style="margin:16px 20px 8px"><span>🎯 오늘의 미션</span><span class="more">' + m.done.length + '/' + MISSIONS.length + '</span></div>'
+    + '<div class="mission-card">' + MISSIONS.map(x => {
+        const on = m.done.indexOf(x.id) >= 0;
+        return '<div class="ms-row' + (on ? ' on' : '') + '"><span class="ms-e">' + (on ? '✅' : x.e) + '</span>'
+          + '<div class="ms-t"><b>' + x.n + '</b><span>' + (on ? '완료 · 보상 지급됨' : x.d) + '</span></div>'
+          + '<span class="ms-r">' + (x.kind === 'booster' ? '⚡ 5분' : '+' + shortWon(x.reward)) + '</span></div>';
+      }).join("") + '</div>';
+}
+
+/* 속보 연승 배지 */
+function renderStreak(){
+  const el = $("#rumorStreak");
+  if (!el) return;
+  const n = (state.stats && state.stats.rumorStreak) || 0;
+  if (n >= 2){ el.style.display = ""; el.textContent = "🔥 " + n + "연승"; }
+  else { el.style.display = "none"; el.textContent = ""; }
+}
+
 /* ---------------- 이벤트 바인딩 ---------------- */
 function bind(){
   // 테마
@@ -5160,8 +5712,22 @@ function bind(){
   if (cb) cb.addEventListener("click", e => {
     const st = e.target.closest("[data-start]");
     if (st) { startChallenge(st.dataset.start); return; }
+    if (e.target.closest("#duelCodeBtn")) { openDuelCodeSheet(); return; }
     if (e.target.closest("#chalQuit2")) endChallenge(true);
   });
+  /* 친구 도전장 배너 */
+  const dw = $("#duelWrap");
+  if (dw) dw.addEventListener("click", e => {
+    if (e.target.closest("[data-duel-go]") && duelPending){
+      const d = duelPending;
+      duelPending = null; saveDuel();
+      startChallenge(d.kind, d.seed, { nick: d.nick, rate: d.rate });
+      return;
+    }
+    if (e.target.closest("[data-duel-skip]")){ duelPending = null; saveDuel(); renderDuel(); renderChallenge(); }
+  });
+  /* 닉네임 변경 */
+  const nb = $("#nickBtn"); if (nb) nb.addEventListener("click", openNickSheet);
   const cq = $("#cbQuit"); if (cq) cq.addEventListener("click", () => endChallenge(true));
 
   // 홈 필터
@@ -5278,6 +5844,15 @@ function bind(){
     }
     if (e.target.id === "sheetCancel") closeSheet();
     if (e.target.id === "chalAgain"){ closeSheet(); showScreen("challenge"); }
+    if (e.target.id === "chalAgain2"){ closeSheet(); showScreen("challenge"); }
+    if (e.target.id === "nickGo"){ saveNick(); return; }
+    if (e.target.id === "chalShare"){ if (lastChalResult) shareChallenge(lastChalResult.ch, lastChalResult.rate); return; }
+    if (e.target.id === "chalCopy"){ if (lastChalResult) copyText(challengeShareCode(lastChalResult.ch, lastChalResult.rate)); return; }
+    if (e.target.id === "duelCodeGo"){
+      const box = $("#duelCodeBox");
+      acceptDuelCode(box ? box.value : "");
+      return;
+    }
   });
   $("#scrim").addEventListener("click", e => { if (e.target.id === "scrim") closeSheet(); });
 
@@ -5380,6 +5955,7 @@ function bind(){
 }
 
 function resetAccount(){
+  if (state.challenge){ toast("챌린지 중엔 계좌 초기화를 할 수 없어요"); return; }
   if (!canResetAccount()){ openReset(); return; }   // 돈이 있거나 횟수를 다 쓴 경우엔 실행 금지
   const used = Math.min(resetMax(), resetCountOf() + 1);
   try { localStorage.setItem(RESET_COUNT_KEY, String(used)); } catch(e) {}   // 횟수 기록은 초기화와 함께 지우지 않는다
@@ -5415,6 +5991,9 @@ function boot(){
   load();
   applyTheme();
   initTicks();
+  ensureOpens(Date.now());
+  const att = checkAttendance();
+  missionState();                 // 날짜가 바뀌었으면 오늘 미션으로 리셋
   if (state.challenge && Date.now() >= state.challenge.endsAt) endChallenge(true, true);
   bind();
   renderHome();
@@ -5427,10 +6006,14 @@ function boot(){
   renderRoom();
   renderHunger();
   renderPending();
+  renderAttend();
+  renderMissions();
   renderChallenge();
   updateChallengeBar();
   showScreen("home");
   initRivals();
+  bootDuel();
+  if (att) setTimeout(() => toast("📅 " + att.day + "일차 출석! +" + shortWon(att.reward) + "원" + (att.streak >= 2 ? " · 🔥 " + att.streak + "일 연속" : "")), 800);
   catchUpOffline();
   if (!state.nextRumorAt || state.nextRumorAt < Date.now() + 15000){
     state.nextRumorAt = Date.now() + RUMOR_FIRST[0] + Math.random() * (RUMOR_FIRST[1] - RUMOR_FIRST[0]);
@@ -5446,6 +6029,5 @@ function boot(){
 
 document.addEventListener("DOMContentLoaded", boot);
 </script>
-<script type="module" src="./src/ait-bridge.js"></script>
 </body>
 </html>
