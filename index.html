@@ -1177,7 +1177,7 @@ const KEY = "moeigami_v2";
 const START_CASH = 10000000;
 /* 계좌 초기화: 돈이 없을 때만, 최대 3번 */
 const RESET_MAX = 3;                          // 계좌 초기화 가능 횟수
-const RESET_BROKE_LIMIT = 100000;             // 총자산이 이 금액 미만이면 '돈이 없을 때'
+const RESET_BROKE_LIMIT = 10000000;           // 총자산이 이 금액(1,000만원) 미만이면 '돈이 없을 때'
 const RESET_COUNT_KEY = "moeigami_reset_count_v1";   // 초기화해도 지워지지 않는 사용 횟수
 const TICK_MS = 1200;
 
@@ -3120,7 +3120,7 @@ function updateResetButton(){
       ? "계좌 초기화 횟수를 모두 사용했어요 (" + max + "/" + max + ")"
       : (isResetBroke()
         ? "지금 초기화하면 예수금 1,000만원으로 복구돼요"
-        : "돈이 부족할 때만 초기화할 수 있어요 · 총자산 " + fmt(RESET_BROKE_LIMIT) + "원 미만");
+        : "돈이 부족할 때만 초기화할 수 있어요 · 총자산 " + shortWon(RESET_BROKE_LIMIT) + "원 미만");
   }
 }
 
@@ -3130,7 +3130,7 @@ function openReset(){
     return;
   }
   if (!isResetBroke()){
-    toast("돈이 부족할 때만 계좌를 초기화할 수 있어요");
+    toast("총자산 " + shortWon(RESET_BROKE_LIMIT) + "원 미만일 때만 계좌를 초기화할 수 있어요");
     return;
   }
   const left = resetLeft(), max = resetMax();
