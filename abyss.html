@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>심연의 탑</title>
+<style>
+*{box-sizing:border-box}
+html{background:#0d0a14;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;color:#ece6f5;font-size:14px;line-height:1.4;font-family:-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+ background:radial-gradient(circle at 20% 0%,rgba(120,70,200,.28),transparent 45%),radial-gradient(circle at 90% 90%,rgba(200,60,90,.18),transparent 45%),#0d0a14;background-attachment:fixed;
+ padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);min-height:100dvh}
+#app{max-width:460px;margin:auto;padding:10px 10px 24px}
+button{font-family:inherit;color:inherit;border:0;background:#2a2140;border-radius:10px;padding:9px 12px;font-size:14px;min-height:38px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button.pri{background:linear-gradient(180deg,#8a5cf0,#6a3fd0);font-weight:700}
+button.gray{background:#3a3050}
+button:disabled{opacity:.4}
+.top{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:13px;margin-bottom:2px}
+.top b{font-size:15px}
+/* 상단 상태 패널: 앱인토스 내비게이션 바와 겹치는 '자체 헤더'로 보이지 않도록 본문 카드로 둔다 */
+.hud{background:#171129;border:1px solid #2f2748;border-radius:12px;padding:9px 10px;margin:0 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}
+.chip{background:#2a2140;border:1px solid #4a3d70;border-radius:8px;padding:2px 7px;font-size:11px;color:#cbb8f5}
+.chip.cur{border-color:#c0504f;color:#ff9a8a}
+.card{background:#1c1630;border:1px solid #3a2f58;border-radius:14px;padding:12px;margin:8px 0}
+h1{font-size:30px;margin:12px 0 2px;text-align:center;background:linear-gradient(90deg,#b99cff,#ff8fa8);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:#a99cc8;font-size:12px}
+.c{text-align:center}
+.wide{width:100%;margin:5px 0}
+.nodes button{width:100%;text-align:left;margin:6px 0;padding:14px}
+.nodes button small{display:block;color:#a99cc8}
+.prog{height:6px;background:#2a2140;border-radius:3px;overflow:hidden;margin:8px 0 0}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,#8a5cf0,#ff8fa8)}
+.en{display:flex;gap:6px;margin:8px 0}
+.e{flex:1;min-width:0;background:#1c1630;border:2px solid #3a2f58;border-radius:12px;padding:8px 4px;text-align:center}
+.e.sel{border-color:#ff8fa8;box-shadow:0 0 12px rgba(255,143,168,.35)}
+.e.dead{opacity:.3}
+.e b{font-size:13px;display:block}
+.e small{display:block;font-size:11px;color:#b9acd8}
+.it{margin:4px 0;font-size:12px;color:#ffb36b;font-weight:700;min-height:16px}
+.hb{height:7px;background:#3a2530;border-radius:4px;overflow:hidden;margin:4px 6px}
+.hb i{display:block;height:100%;background:#e0505f}
+.hb.p i{background:#4fd18b}
+.pl{background:#1c1630;border:1px solid #3a2f58;border-radius:12px;padding:8px 10px;margin:8px 0}
+.pl .r{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.en-badge{display:inline-block;background:#8a5cf0;border-radius:999px;padding:2px 10px;font-weight:700}
+.warn{color:#ff9a8a;font-size:12px}
+.hand{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.cd{position:relative;width:calc(33.33% - 4px);min-height:104px;padding:20px 5px 6px;text-align:center;display:flex;flex-direction:column;justify-content:flex-start;gap:3px;border:2px solid #4a3d70}
+/* 전투 화면: 손패와 턴 종료를 화면 아래(엄지 닿는 곳)로 붙인다 */
+#app.battle{display:flex;flex-direction:column;min-height:100dvh;padding-bottom:max(12px,env(safe-area-inset-bottom))}
+#app.battle .btm{margin-top:auto}
+/* 카드가 많아 화면을 넘칠 때도 턴 종료 버튼은 항상 손이 닿게 */
+#app.battle .endrow{position:sticky;bottom:0;pointer-events:none;padding:6px 0}
+#app.battle .endrow>*{pointer-events:auto}
+#app.battle .endrow .sub{background:rgba(13,10,20,.86);border-radius:8px;padding:2px 8px}
+.cd b{font-size:13px}
+.cd small{font-size:11px;color:#d8cdf0;line-height:1.3}
+.cd .cc{position:absolute;top:3px;left:3px;background:#6a3fd0;border-radius:999px;width:20px;height:20px;line-height:20px;font-size:12px;font-weight:700;text-align:center}
+.cd.atk{background:#3a1f2c;border-color:#8a3a50}
+.cd.skl{background:#1f2e3a;border-color:#3a6a8a}
+.cd.pow{background:#2e1f3a;border-color:#7a4aa8}
+.cd.zz{background:#262626;border-color:#555}
+.cd.dis{opacity:.4}
+.row2{display:flex;gap:6px;align-items:center;justify-content:space-between}
+.pots{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.pots button{font-size:12px;padding:6px 8px;min-height:32px;background:#1f3a2e;border:1px solid #3a8a6a}
+#modal{position:fixed;inset:0;background:#000d;z-index:20;overflow:auto;padding:max(14px,env(safe-area-inset-top)) 12px 24px}
+#modal .in{max-width:460px;margin:auto}
+.shopit{display:flex;gap:8px;align-items:stretch;margin:6px 0}
+.shopit .cd{width:100%}
+.shopit button.buy{min-width:70px}
+.big{font-size:18px;font-weight:700}
+.bad{color:#ff8f7a}
+.cls{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.cls button{flex:1 1 calc(50% - 6px);padding:10px 4px;font-size:12px;line-height:1.35;border:2px solid #3a2f58}
+.cls button.on{border-color:#ff8fa8;background:#3a2850}
+.cls button b{display:block;font-size:15px}
+.ev button{width:100%;text-align:left;margin:6px 0;padding:12px}
+.ach{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #2a2140}
+.ach.on b{color:#7fe3a8}
+</style></head><body>
+<div id="app"></div>
+<script>
+const KEY='abyssTower3',KEYM='abyssTower2Meta';
+const T={hpW:85,hpR:62,hpM:66,hpP:72,bossHp:130,heal:.3,rest:9,elite:12,dmg:.07,hpS:.08,hpMul:1,edm:.95,draw:6,afterHeal:3,potE:.4,potB:.15};
+const CARDS={
+ strike:{n:'타격',c:1,t:'a',d:6},defend:{n:'수비',c:1,t:'s',b:5},bash:{n:'강타',c:2,t:'a',d:8,vul:2},wound:{n:'상처',c:0,t:'z',u:1},
+ quick:{n:'속공',c:0,t:'a',d:4},shrug:{n:'어깨 으쓱',c:1,t:'s',b:8,dr:1},trance:{n:'정신 집중',c:0,t:'s',dr:2},
+ twin:{n:'쌍격',c:1,t:'a',d:4,h:2},pommel:{n:'자루 가격',c:1,t:'a',d:9,dr:1},cloth:{n:'후려치기',c:2,t:'a',d:12,weak:2},armor:{n:'철벽',c:2,t:'s',b:15},blood:{n:'피의 의식',c:0,t:'s',hp:3,en:1},
+ heavy:{n:'대검 내려치기',c:2,t:'a',d:15},whirl:{n:'회오리',c:2,t:'a',d:9,aoe:1},inflame:{n:'격앙',c:1,t:'p',str:2},metal:{n:'금속화',c:1,t:'p',met:3},imperv:{n:'불굴',c:2,t:'s',b:26,x:1},bodyslam:{n:'몸통 박치기',c:1,t:'a',bs:1},
+ offer:{n:'제물',c:0,t:'s',hp:6,en:2,dr:3,x:1},demon:{n:'악마의 힘',c:3,t:'p',dem:2},shock:{n:'충격파',c:2,t:'s',weak:2,vul:2,aoe:1,x:1},bludg:{n:'박살',c:3,t:'a',d:32},
+ dart:{n:'독침',c:1,t:'a',d:3,poi:4},stab:{n:'급소 찌르기',c:1,t:'a',d:6,poi:3},flurry:{n:'연속 베기',c:1,t:'a',d:3,h:3},feint:{n:'페인트',c:1,t:'s',b:6,weak:1},venomc:{n:'독안개',c:2,t:'a',aoe:1,poi:5},sidestep:{n:'옆걸음',c:0,t:'s',b:4,dr:1},
+ catalyst:{n:'맹독',c:1,t:'s',dbl:1,x:1},assassin:{n:'암습',c:0,t:'a',d:11,x:1},noxious:{n:'독 칼날',c:1,t:'p',ptp:2},ambush:{n:'기습',c:2,t:'a',d:14,poi:4},adrenal:{n:'아드레날린',c:0,t:'s',en:1,dr:2,x:1},
+ phantom:{n:'환영',c:2,t:'p',ptp:4},bomb:{n:'독 폭탄',c:3,t:'a',aoe:1,poi:12,x:1},blight:{n:'독 폭발',c:2,t:'a',pd:3},
+ spark:{n:'불꽃',c:1,t:'a',d:5,burn:2},ember:{n:'불씨',c:0,t:'a',d:3,burn:3},bolt:{n:'번개',c:1,t:'a',d:9},frostb:{n:'서리 방패',c:1,t:'s',b:5,weak:1},chill:{n:'냉기',c:1,t:'a',d:6,weak:2},zap:{n:'전기 충격',c:1,t:'a',d:5,aoe:1},ward:{n:'마법 방벽',c:2,t:'s',b:13,dr:1},
+ fireball:{n:'화염구',c:2,t:'a',d:14,burn:5},blizzard:{n:'눈보라',c:2,t:'a',d:8,aoe:1,weak:2},crystal:{n:'마나 수정',c:0,t:'s',en:1,dr:1,x:1},inferno:{n:'불바다',c:1,t:'a',aoe:1,burn:5},arcane:{n:'비전 지식',c:1,t:'s',dr:3,hp:3},
+ surge:{n:'마력 폭주',c:2,t:'p',eng:1},meteor:{n:'운석',c:3,t:'a',d:22,aoe:1,burn:6,x:1},mind:{n:'집중',c:1,t:'p',dpt:1},
+ oath:{n:'맹세의 일격',c:1,t:'a',d:7,heal:2},laying:{n:'치유의 손',c:1,t:'s',heal:6},bless:{n:'축복',c:1,t:'s',b:6,heal:2},judge:{n:'심판',c:1,t:'a',d:6,vul:1},
+ smiteh:{n:'성스러운 강타',c:2,t:'a',d:13,heal:4},thorns:{n:'가시 갑옷',c:1,t:'p',th:3},aegis:{n:'신의 가호',c:2,t:'s',b:16,heal:3},rebuke:{n:'질책',c:2,t:'a',aoe:1,d:8,weak:1},halo:{n:'후광',c:1,t:'p',met:2,th:1},
+ divine:{n:'기적',c:2,t:'s',heal:16,b:10,x:1},avatar:{n:'수호신 강림',c:3,t:'p',th:4,met:4},wrath:{n:'신의 분노',c:3,t:'a',d:26,heal:8,x:1}};
+const NEU={c:['quick','shrug','trance'],u:[],r:[]};
+const CLS={
+ w:{n:'전사',hp:T.hpW,d:'힘과 방어로 버팀',deck:['strike','strike','strike','strike','strike','defend','defend','defend','defend','bash'],c:['twin','pommel','cloth','armor','blood'],u:['heavy','whirl','inflame','metal','imperv','bodyslam'],r:['offer','demon','shock','bludg']},
+ r:{n:'도적',hp:T.hpR,d:'독을 쌓아 서서히 녹임',deck:['strike','strike','strike','strike','strike','defend','defend','defend','defend','dart'],c:['stab','flurry','feint','venomc','sidestep'],u:['catalyst','assassin','noxious','ambush','adrenal'],r:['phantom','bomb','blight']},
+ m:{n:'마법사',hp:T.hpM,d:'화상과 냉기, 에너지 폭발',deck:['strike','strike','strike','strike','defend','defend','defend','defend','spark','spark'],c:['ember','bolt','frostb','chill','zap','ward'],u:['fireball','blizzard','crystal','inferno','arcane'],r:['surge','meteor','mind']},
+ p:{n:'성기사',hp:T.hpP,d:'회복과 가시로 버티며 반격',deck:['strike','strike','strike','strike','strike','defend','defend','defend','defend','oath'],c:['laying','bless','judge','oath'],u:['smiteh','thorns','aegis','rebuke','halo'],r:['divine','avatar','wrath']}};
+const CKEYS=['w','r','m','p'];
+const pool=(cl,k)=>CLS[cl][k].concat(NEU[k]);
+const RELICS={ring:['불타는 혈석','전투 후 체력 6 회복'],anchor:['닻','전투 시작 시 방어 8'],lantern:['등불','첫 턴 에너지 +1'],
+ vajra:['금강저','전투 시작 시 힘 +1'],bag:['가방','첫 턴 카드 2장 더'],chalice:['성배','최대 체력 +12'],
+ shield:['방패 조각','매 턴 시작 시 방어 3'],pendant:['부적','전투 시작 시 적 전체 취약 1'],mask:['가면','휴식 회복 +10%'],
+ belt:['물약 벨트','물약 칸 +2'],clover:['네잎 클로버','카드 보상 4장'],coin:['황금 주화','전투 골드 +50%'],honey:['꿀단지','최대 체력 +8'],scroll:['두루마리','상점 가격 -20%'],
+ glass:['유리 대포','주는 피해 +30%, 받는 피해 +30%',1],hungry:['허기진 항아리','매 턴 에너지 +1, 전투마다 상처 카드 2장이 섞임',1],
+ bloodgem:['피의 보석','전투 시작 시 힘 +2, 체력 -4',1],greed:['탐욕의 눈','전투 골드 2배, 최대 체력 -15',1]};
+const RK=Object.keys(RELICS).filter(k=>!RELICS[k][2]),CK=Object.keys(RELICS).filter(k=>RELICS[k][2]);
+const POT={heal:['치유 물약','체력 22 회복'],str:['힘의 물약','이번 전투 힘 +3'],bomb:['폭탄 물약','적 전체 18 피해'],blk:['철갑 물약','방어 18'],eng:['에너지 물약','에너지 +2'],tox:['독 물약','선택한 적에게 독 8']};
+const PK=Object.keys(POT);
+const EN={
+ slime:{n:'슬라임',hp:[20,24],mv:t=>[{d:7},{d:5,b:5},{d:9}][t%3]},louse:{n:'벌레',hp:[14,18],mv:t=>[{d:5,s:1},{d:4,b:4}][t%2]},
+ cultist:{n:'광신도',hp:[40,46],mv:t=>t===0?{s:3}:{d:6,s:2}},jaw:{n:'턱벌레',hp:[40,44],mv:t=>[{d:11},{b:6,s:3},{d:7,b:5}][t%3]},
+ sentry:{n:'감시병',hp:[38,42],mv:t=>[{d:9,v:1},{d:9,w:1},{d:14}][t%3]},bandit:{n:'도적',hp:[36,40],mv:t=>[{d:5,h:2},{d:12},{b:10,d:6}][t%3]},
+ gremlin:{n:'작은 요괴',hp:[10,13],mv:t=>[{d:5},{d:4,w:1}][t%2]},parasite:{n:'갑각 기생충',hp:[50,56],mv:t=>[{d:12,b:6},{d:5,h:2},{d:10,v:2}][t%3]},
+ spider:{n:'독거미',hp:[34,38],mv:t=>[{d:4,h:2,w:1},{d:9},{b:8,s:1}][t%3]},archer:{n:'궁수',hp:[30,34],mv:t=>[{d:8},{d:5,w:1},{d:12}][t%3]},
+ knight:{n:'철갑 기사',hp:[64,70],mv:t=>[{d:14},{b:16,s:2},{d:7,h:2},{d:20}][t%4]},shaman:{n:'광신도 두목',hp:[70,76],mv:t=>[{s:3,w:1},{d:10,h:2},{d:12,s:1}][t%3]},
+ golem:{n:'고대 골렘',hp:[84,90],mv:t=>[{b:20},{d:23},{d:10,v:2}][t%3]},assas:{n:'암살자',hp:[60,66],mv:t=>[{d:6,h:3},{d:18},{d:9,v:2}][t%3]},
+ abyss:{n:'심연의 왕',hp:[T.bossHp,T.bossHp+10],mv:t=>[{d:16,v:2},{d:7,h:3,w:1},{b:20,s:3},{d:28}][t%4]},
+ hydra:{n:'히드라',hp:[T.bossHp+10,T.bossHp+20],mv:t=>[{d:6,h:3},{d:13,w:1},{b:14,s:2},{d:9,h:2,v:1}][t%4]}};
+const POOLS={e:[['slime'],['louse','louse'],['cultist'],['jaw'],['slime','louse'],['spider']],
+ m:[['sentry'],['bandit','louse'],['gremlin','gremlin','gremlin'],['parasite'],['sentry','louse'],['archer','spider']],
+ l:[['parasite','bandit'],['sentry','sentry'],['jaw','cultist'],['bandit','sentry'],['parasite','jaw'],['archer','archer','spider']]};
+const NODE={battle:['전투','일반 적과 싸웁니다'],elite:['정예 전투','강한 적. 이기면 유물을 얻습니다'],rest:['휴식터','체력 회복 또는 카드 강화'],shop:['상점','카드·물약 구매, 카드 제거, 치료'],event:['사건','무슨 일이 벌어질지 몰라요']};
+
+let run=null,bt=null;
+/* 난수: 일일 도전이면 날짜 시드, 아니면 일반 난수 */
+function R(){if(run&&run.seed!=null){run.seed=(run.seed+0x6D2B79F5)|0;let t=run.seed;t=Math.imul(t^t>>>15,1|t);t^=t+Math.imul(t^t>>>7,61|t);return((t^t>>>14)>>>0)/4294967296}return Math.random()}
+const ri=(a,b)=>a+Math.floor(R()*(b-a+1));
+const pick=a=>a[Math.floor(R()*a.length)];
+const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+function ld(k,d){try{const r=localStorage.getItem(k);return r?JSON.parse(r):d}catch(e){return d}}
+function pt(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+const $=i=>document.getElementById(i);
+const base=id=>id.endsWith('+')?id.slice(0,-1):id;
+const canUp=id=>!id.endsWith('+')&&!CARDS[id].u;
+const todayKey=()=>{const d=new Date();return ''+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')};
+
+let meta=Object.assign({wins:0,asc:0,best:0,runs:0,endBest:0,daily:null,maxAscWin:-1},ld(KEYM,{}));
+['cw','cs','rs','ach','flag'].forEach(k=>{if(!meta[k])meta[k]={}});
+let view='title',mode='normal',selAsc=0,selCls='w',pk=null,dk=false,guide=false,adBusy=false,adNote='';
+const saveRun=()=>pt(KEY,run&&run.phase!=='dead'&&run.phase!=='won'?{run,bt}:null);
+const ef=()=>Math.max(0,run.floor-12);
+const dm=()=>1+T.dmg*run.asc+0.06*ef();
+const slots=()=>run.relics.includes('belt')?5:3;
+const sp=p=>run.relics.includes('scroll')?Math.round(p*.8):p;
+const has=r=>run.relics.includes(r);
+
+function seenC(id){const b=base(id);if(!CARDS[b].u&&!meta.cs[b]){meta.cs[b]=1;pt(KEYM,meta)}}
+function addCard(id){run.deck.push(id);seenC(id)}
+const ACH=[
+ ['first','첫 승리','탑을 처음 클리어',()=>meta.wins>=1],
+ ['all','모든 직업','4개 직업으로 각각 클리어',()=>CKEYS.every(k=>(meta.cw[k]||0)>0)],
+ ['asc3','단련된 자','난이도 3단계 이상 클리어',()=>meta.maxAscWin>=3],
+ ['curse','저주를 이겨낸 자','저주 유물을 지닌 채 클리어',()=>!!meta.flag.curse],
+ ['thin','미니멀리스트','덱 12장 이하로 클리어',()=>!!meta.flag.thin],
+ ['rich','부자','골드 300 이상 모은 채 클리어',()=>!!meta.flag.rich],
+ ['daily','오늘의 도전자','일일 도전 클리어',()=>!!meta.flag.daily],
+ ['endless','끝없는 계단','무한 모드 18층 도달',()=>meta.endBest>=18],
+ ['collector','카드 수집가','카드 30종 발견',()=>Object.keys(meta.cs).length>=30],
+ ['relic','유물 수집가','유물 10종 발견',()=>Object.keys(meta.rs).length>=10]];
+function checkAch(){const out=[];ACH.forEach(a=>{if(!meta.ach[a[0]]&&a[3]()){meta.ach[a[0]]=1;out.push(a[1])}});
+ if(out.length&&run)run.newAch=(run.newAch||[]).concat(out);pt(KEYM,meta)}
+function recDaily(f,won){const d=run.daily;if(!d)return;if(!meta.daily||meta.daily.date!==d)meta.daily={date:d,floor:0,won:0};meta.daily.floor=Math.max(meta.daily.floor,f);if(won)meta.daily.won=1}
+
+function card(id){const up=id.endsWith('+');const c=Object.assign({},CARDS[base(id)]);if(!up||c.u)return c;let sc=0;
+ if(c.d){c.d+=Math.max(2,Math.round(c.d*.3));sc=1}if(c.b){c.b+=Math.max(2,Math.round(c.b*.3));sc=1}
+ ['vul','weak','str','met','dem','dr','ptp','th'].forEach(k=>{if(c[k]){c[k]+=1;sc=1}});
+ if(c.poi){c.poi+=2;sc=1}if(c.burn){c.burn+=2;sc=1}if(c.heal){c.heal+=2;sc=1}
+ if(c.hp)c.hp=Math.max(1,c.hp-1);
+ if(!sc||c.eng||c.dpt||c.dbl||c.bs||c.pd)c.c=Math.max(0,c.c-1);return c}
+function cname(id){return CARDS[base(id)].n+(id.endsWith('+')?'+':'')}
+function ctext(c){if(c.u)return'사용할 수 없음';const p=[];
+ if(c.d)p.push((c.aoe?'전체 ':'')+c.d+(c.h?' x'+c.h:'')+' 피해');if(c.bs)p.push('방어만큼 피해');if(c.pd)p.push('독 x'+c.pd+' 피해');
+ if(c.b)p.push('방어 '+c.b);if(c.vul)p.push('취약 '+c.vul);if(c.weak)p.push('약화 '+c.weak);
+ if(c.poi)p.push((c.aoe?'전체 ':'')+'독 '+c.poi);if(c.burn)p.push((c.aoe?'전체 ':'')+'화상 '+c.burn);if(c.dbl)p.push('독 2배');
+ if(c.heal)p.push('체력 '+c.heal+' 회복');if(c.th)p.push('가시 +'+c.th+' (맞을 때마다 반격)');
+ if(c.str)p.push('힘 +'+c.str);if(c.met)p.push('턴 끝 방어 +'+c.met);if(c.dem)p.push('매 턴 힘 +'+c.dem);
+ if(c.ptp)p.push('매 턴 적 전체 독 +'+c.ptp);if(c.eng)p.push('매 턴 에너지 +'+c.eng);if(c.dpt)p.push('매 턴 카드 +'+c.dpt);
+ if(c.hp)p.push('체력 -'+c.hp);if(c.en)p.push('에너지 +'+c.en);if(c.dr)p.push('카드 '+c.dr+'장');
+ if(c.x||c.t==='p')p.push('소멸');return p.join(' · ')}
+
+function newRun(cl,asc,daily){
+ run={cls:cl,hp:CLS[cl].hp,mhp:CLS[cl].hp,gold:50,floor:1,asc:asc,rm:0,relics:[],pots:[],phase:'map',deck:CLS[cl].deck.slice(),nodes:null,shop:null,rew:null,healed:0,ev:null,boss:'abyss',seed:daily?+daily:null,daily:daily||null,endless:0,newAch:[],lr:0};
+ run.boss=pick(['abyss','hydra']);run.nodes=genNodes(1);bt=null;view='run';
+ run.deck.forEach(seenC);saveRun()}
+function genNodes(f){if(f===1)return['battle'];if(f===11)return['rest'];if(f===12)return['boss'];
+ if(f>12){if((f-12)%6===0)return['boss'];if((f-12)%6===5)return['rest']}
+ const W=[['battle',46],['elite',f>=4?T.elite:0],['rest',(run&&run.lr===f-1)?0:T.rest],['shop',12],['event',f>=2?14:0]];const n=f>=3&&R()<.4?3:2,out=[];
+ for(let k=0;k<30&&out.length<n;k++){let r=R()*W.reduce((a,x)=>a+x[1],0),t;for(const x of W){r-=x[1];if(r<=0){t=x[0];break}}if(!out.includes(t))out.push(t)}
+ if(out.every(x=>x==='elite'))out[0]='battle';return out}
+function mkE(id){const d=EN[id];const hp=Math.round(ri(d.hp[0],d.hp[1])*(1+T.hpS*run.asc)*T.hpMul*(1+0.12*ef()));return{id,hp,mhp:hp,blk:0,str:0,vul:0,weak:0,poi:0,burn:0,t:0,int:null}}
+function startBattle(ids,kind){bt={kind,en:ids.map(mkE),hand:[],draw:shuf(run.deck.concat(has('hungry')?['wound','wound']:[])),disc:[],exh:[],e:0,blk:0,str:(has('vajra')?1:0)+(has('bloodgem')?2:0),vul:0,weak:0,met:0,dem:0,eng:0,dpt:0,ptp:0,th:0,turn:0,sel:0,over:null};
+ if(has('pendant'))bt.en.forEach(e=>e.vul=1);if(has('bloodgem'))run.hp=Math.max(1,run.hp-4);
+ run.phase='battle';startTurn()}
+function drawN(n){for(let i=0;i<n;i++){if(bt.hand.length>=10)break;if(!bt.draw.length){bt.draw=shuf(bt.disc);bt.disc=[]}if(!bt.draw.length)break;bt.hand.push(bt.draw.pop())}}
+function startTurn(){bt.turn++;const f=bt.turn===1;bt.blk=(f&&has('anchor')?8:0)+(has('shield')?3:0);
+ bt.e=3+bt.eng+(has('hungry')?1:0)+(f&&has('lantern')?1:0);bt.str+=bt.dem;
+ if(bt.ptp)bt.en.forEach(e=>{if(e.hp>0)e.poi+=bt.ptp});
+ drawN(T.draw+bt.dpt+(f&&has('bag')?2:0));
+ bt.en.forEach(e=>{if(e.hp>0)e.int=EN[e.id].mv(e.t)});
+ if(!bt.en[bt.sel]||bt.en[bt.sel].hp<=0)bt.sel=bt.en.findIndex(e=>e.hp>0)}
+function hit(e,b){let d=b+bt.str;if(bt.weak)d*=.75;if(e.vul)d*=1.5;if(has('glass'))d*=1.3;d=Math.max(0,Math.floor(d));const a=Math.min(e.blk,d);e.blk-=a;e.hp-=d-a}
+function hurt(d){const a=Math.min(bt.blk,d);bt.blk-=a;run.hp-=d-a}
+function idmg(e){const it=e.int;if(!it||!it.d)return 0;return Math.floor((it.d+e.str)*(e.weak?.75:1)*(bt.vul?1.5:1)*dm()*T.edm*(has('glass')?1.3:1))}
+function incoming(){return bt.en.reduce((a,e)=>a+(e.hp>0&&e.int&&e.int.d?idmg(e)*(e.int.h||1):0),0)}
+function rcards(el,n){const cl=run.cls,out=[];n=n||(has('clover')?4:3);while(out.length<n){const r=R()*100,k=el?(r<40?'c':r<82?'u':'r'):(r<60?'c':r<93?'u':'r');const id=pick(pool(cl,k));if(!out.includes(id))out.push(id)}return out}
+function dropPot(ch){if(run.pots.length<slots()&&R()<ch){const p=pick(PK);run.pots.push(p);return p}return null}
+function gainRelic(r){run.relics.push(r);if(r==='chalice'){run.mhp+=12;run.hp+=12}if(r==='honey'){run.mhp+=8;run.hp+=8}
+ if(r==='greed'){run.mhp=Math.max(25,run.mhp-15);run.hp=Math.min(run.hp,run.mhp)}
+ if(!meta.rs[r]){meta.rs[r]=1;pt(KEYM,meta)}}
+function checkWin(){if(bt.en.every(e=>e.hp<=0)){bt.over='win';finish();return true}return false}
+function finish(){const k=bt.kind;
+ if(k==='boss'&&!run.endless){run.phase='won';meta.wins++;meta.runs++;meta.best=12;meta.cw[run.cls]=(meta.cw[run.cls]||0)+1;
+  if(!run.daily&&run.asc===meta.asc&&meta.asc<5)meta.asc++;meta.maxAscWin=Math.max(meta.maxAscWin,run.asc);
+  if(run.relics.some(x=>RELICS[x][2]))meta.flag.curse=1;if(run.deck.length<=12)meta.flag.thin=1;if(run.gold>=300)meta.flag.rich=1;if(run.daily)meta.flag.daily=1;
+  recDaily(12,1);checkAch();return}
+ const big=k==='elite'||k==='boss';
+ let g=big?ri(25,35):ri(10,20);if(has('coin'))g=Math.round(g*1.5);if(has('greed'))g*=2;g=Math.round(g*(1+0.1*ef()));run.gold+=g;
+ if(has('ring'))run.hp=Math.min(run.mhp,run.hp+6);run.hp=Math.min(run.mhp,run.hp+T.afterHeal);
+ let rel=null;if(big){const left=RK.filter(x=>!has(x));if(left.length){rel=pick(left);gainRelic(rel)}}
+ const pot=dropPot(big?T.potE:T.potB);
+ run.rew={gold:g,cards:rcards(big),relic:rel,pot,big,rr:0};run.phase='reward'}
+function die(){run.phase='dead';if(!run.endless)meta.runs++;meta.best=Math.max(meta.best,Math.min(12,run.floor));
+ if(run.endless)meta.endBest=Math.max(meta.endBest,run.floor);recDaily(run.floor,0);checkAch()}
+function play(i){if(!bt||bt.over)return;const id=bt.hand[i];if(id==null)return;const c=card(id);if(c.u||c.c>bt.e)return;
+ let t=bt.sel;if(!bt.en[t]||bt.en[t].hp<=0)t=bt.en.findIndex(e=>e.hp>0);
+ bt.e-=c.c;bt.hand.splice(i,1);const tg=c.aoe?bt.en.filter(e=>e.hp>0):[bt.en[t]];
+ if(c.hp)run.hp=Math.max(1,run.hp-c.hp);if(c.heal)run.hp=Math.min(run.mhp,run.hp+c.heal);
+ if(c.en)bt.e+=c.en;if(c.str)bt.str+=c.str;if(c.met)bt.met+=c.met;if(c.dem)bt.dem+=c.dem;
+ if(c.eng)bt.eng+=c.eng;if(c.dpt)bt.dpt+=c.dpt;if(c.ptp)bt.ptp+=c.ptp;if(c.th)bt.th+=c.th;
+ let bs=c.d||0;if(c.bs)bs=bt.blk;if(c.b)bt.blk+=c.b;
+ tg.forEach(e=>{const b=c.pd?e.poi*c.pd:bs;if(b>0||c.d)for(let h=0;h<(c.h||1);h++)if(e.hp>0)hit(e,b);
+  if(e.hp>0){if(c.vul)e.vul+=c.vul;if(c.weak)e.weak+=c.weak;if(c.poi)e.poi+=c.poi;if(c.burn)e.burn+=c.burn;if(c.dbl)e.poi*=2}});
+ if(c.dr)drawN(c.dr);(c.t==='p'||c.x?bt.exh:bt.disc).push(id);
+ if(!checkWin()&&bt.en[bt.sel].hp<=0)bt.sel=bt.en.findIndex(e=>e.hp>0)}
+function usePot(i){if(!bt||bt.over)return;const p=run.pots[i];if(!p)return;const al=bt.en.filter(e=>e.hp>0);
+ if(p==='heal')run.hp=Math.min(run.mhp,run.hp+22);else if(p==='str')bt.str+=3;else if(p==='blk')bt.blk+=18;else if(p==='eng')bt.e+=2;
+ else if(p==='bomb')al.forEach(e=>{const a=Math.min(e.blk,18);e.blk-=a;e.hp-=18-a});else if(p==='tox'){let t=bt.en[bt.sel];if(!t||t.hp<=0)t=al[0];t.poi+=8}
+ run.pots.splice(i,1);checkWin();if(!bt.over&&bt.en[bt.sel].hp<=0)bt.sel=bt.en.findIndex(e=>e.hp>0)}
+function endTurn(){if(!bt||bt.over)return;bt.disc.push(...bt.hand);bt.hand=[];bt.blk+=bt.met;
+ for(const e of bt.en){if(e.hp<=0)continue;if(e.poi>0){e.hp-=e.poi;e.poi--}if(e.burn>0){e.hp-=e.burn;e.burn=Math.floor(e.burn/2)}}
+ if(checkWin())return;
+ for(const e of bt.en){if(e.hp<=0)continue;e.blk=0;const it=e.int;
+  if(it.d)for(let h=0;h<(it.h||1);h++){hurt(idmg(e));if(bt.th&&e.hp>0)e.hp-=bt.th}
+  if(it.b)e.blk+=it.b;if(it.s)e.str+=it.s;if(it.v)bt.vul+=it.v;if(it.w)bt.weak+=it.w;e.t++}
+ if(run.hp<=0){bt.over='lose';die();return}
+ if(checkWin())return;
+ bt.vul=Math.max(0,bt.vul-1);bt.weak=Math.max(0,bt.weak-1);bt.en.forEach(e=>{e.vul=Math.max(0,e.vul-1);e.weak=Math.max(0,e.weak-1)});startTurn()}
+function advance(){run.floor++;run.nodes=genNodes(run.floor);run.phase='map';run.ev=null;bt=null;
+ if(run.endless){meta.endBest=Math.max(meta.endBest,run.floor);checkAch()}}
+function genShop(){const pr=id=>{const cl=run.cls;const k=pool(cl,'c').includes(id)?45:pool(cl,'u').includes(id)?70:120;return sp(k+ri(0,10))};
+ const ids=[pick(pool(run.cls,'c')),pick(pool(run.cls,'u')),pick([].concat(pool(run.cls,'c'),pool(run.cls,'u'),pool(run.cls,'r')))];
+ return{cards:ids.map(id=>({id,p:pr(id),sold:0})),pot:{id:pick(PK),p:sp(40+ri(0,15)),sold:0},rm:sp(75+25*run.rm),heal:sp(50)}}
+const crOpt=k=>[()=>run.ev.cr[k]?RELICS[run.ev.cr[k]][0]+' 가져가기 - '+RELICS[run.ev.cr[k]][1]:'(없음)',()=>!!run.ev.cr[k],()=>{const r=run.ev.cr[k];gainRelic(r);return'저주 유물 획득: '+RELICS[r][0]}];
+const EVENTS=[
+ {n:'맑은 샘',x:'바닥이 비치는 맑은 샘입니다. 마시면 기운이 날 것 같지만...',o:[
+  ['마신다 (체력 25% 회복, 30% 확률로 상처 카드)',()=>true,()=>{run.hp=Math.min(run.mhp,run.hp+Math.floor(run.mhp*.25));if(R()<.3){run.deck.push('wound');return'몸이 가벼워졌지만 어딘가 찜찜합니다. 상처 카드가 덱에 들어왔어요.'}return'시원하게 회복했습니다.'}],
+  ['지나간다',()=>true,()=>'조용히 지나갔습니다.']]},
+ {n:'도박꾼',x:'낡은 주사위를 든 사내가 내기를 제안합니다.',o:[
+  ['40골드 걸기 (50% 확률로 90골드)',()=>run.gold>=40,()=>{run.gold-=40;if(R()<.5){run.gold+=90;return'이겼습니다! 골드 +90'}return'졌습니다. 골드 -40'}],
+  ['거절한다',()=>true,()=>'고개를 저었습니다.']]},
+ {n:'낡은 제단',x:'피 냄새가 나는 제단입니다.',o:[
+  ['체력 12를 바친다 (카드 한 장 강화)',()=>run.hp>14&&run.deck.some(canUp),()=>'PICKUP'],
+  ['골드 60을 바친다 (최대 체력 +8)',()=>run.gold>=60,()=>{run.gold-=60;run.mhp+=8;run.hp+=8;return'최대 체력이 8 늘었습니다.'}],
+  ['떠난다',()=>true,()=>'제단을 등졌습니다.']]},
+ {n:'떠돌이 상인',x:'수레를 끄는 상인이 은밀하게 속삭입니다.',o:[
+  ['유물 구매 (90골드)',()=>run.gold>=90&&RK.some(x=>!has(x)),()=>{run.gold-=90;const r=pick(RK.filter(x=>!has(x)));gainRelic(r);return'유물 획득: '+RELICS[r][0]}],
+  ['카드 제거 (40골드)',()=>run.gold>=40&&run.deck.length>5,()=>'PICKRM'],
+  ['떠난다',()=>true,()=>'상인이 아쉬워합니다.']]},
+ {n:'부상당한 모험가',x:'길가에 쓰러진 모험가가 신음합니다.',o:[
+  ['돕는다 (20골드, 물약 획득)',()=>run.gold>=20&&run.pots.length<slots(),()=>{run.gold-=20;const p=pick(PK);run.pots.push(p);return'감사 인사와 함께 '+POT[p][0]+'을 받았습니다.'}],
+  ['약탈한다 (골드 +45, 상처 카드)',()=>true,()=>{run.gold+=45;run.deck.push('wound');return'골드 +45. 마음 한구석이 무겁습니다. 상처 카드가 덱에 들어왔어요.'}],
+  ['지나간다',()=>true,()=>'못 본 척 지나갔습니다.']]},
+ {n:'악마의 계약',x:'붉은 눈의 존재가 속삭입니다. 힘을 원하는가.',o:[
+  ['계약한다 (최대 체력 -10, 희귀 카드 한 장)',()=>run.mhp>40,()=>{run.mhp-=10;run.hp=Math.min(run.hp,run.mhp);run.rew={gold:0,cards:pool(run.cls,'r').slice(0,3),relic:null,pot:null,big:false,rr:0};run.phase='reward';return'REWARD'}],
+  ['거절한다',()=>true,()=>'속삭임이 멀어졌습니다.']]},
+ {n:'낡은 보물 상자',x:'먼지 쌓인 상자가 놓여 있습니다.',o:[
+  ['연다 (60% 골드 +60, 25% 유물, 15% 함정 체력 -15)',()=>true,()=>{const r=R();if(r<.6){run.gold+=60;return'골드 +60'}if(r<.85){const l=RK.filter(x=>!has(x));if(l.length){const x=pick(l);gainRelic(x);return'유물 획득: '+RELICS[x][0]}run.gold+=60;return'골드 +60'}run.hp=Math.max(1,run.hp-15);return'함정이었습니다. 체력 -15'}],
+  ['무시한다',()=>true,()=>'상자를 두고 떠났습니다.']]},
+ {n:'금단의 제단',x:'검은 제단 위에 강력하지만 대가가 따르는 유물이 놓여 있습니다.',o:[crOpt(0),crOpt(1),['손대지 않는다',()=>true,()=>'제단을 등졌습니다.']]}];
+const CUR_EV=EVENTS.length-1;
+
+/* 화면 */
+const stt=e=>[e.str?'힘 +'+e.str:'',e.vul?'취약 '+e.vul:'',e.weak?'약화 '+e.weak:'',e.poi?'독 '+e.poi:'',e.burn?'화상 '+e.burn:''].filter(Boolean).join(' · ')||'&nbsp;';
+function intent(e){const it=e.int;if(!it)return'';const p=[];
+ if(it.d)p.push('공격 '+idmg(e)+(it.h>1?' x'+it.h:''));if(it.b)p.push('방어 '+it.b);if(it.s)p.push('힘 +'+it.s);if(it.v)p.push('취약');if(it.w)p.push('약화');return p.join(' · ')}
+function cardBtn(id,i,a,dis){const c=card(id);const k=c.t==='a'?'atk':c.t==='s'?'skl':c.t==='z'?'zz':'pow';
+ return '<button class="cd '+k+(dis?' dis':'')+'" data-a="'+a+'" data-i="'+i+'"><span class="cc">'+c.c+'</span><b>'+cname(id)+'</b><small>'+ctext(c)+'</small></button>'}
+const chip=x=>'<span class="chip'+(RELICS[x][2]?' cur':'')+'">'+RELICS[x][0]+': '+RELICS[x][1]+'</span>';
+function topbar(){const r=run;
+ return '<div class="hud"><div class="top"><span><b>'+r.floor+'층</b>'+(r.endless?' (무한)':' / 12')+' · '+CLS[r.cls].n+(r.asc?' · 단계 '+r.asc:'')+(r.daily?' · 일일':'')+'</span><span>체력 <b class="'+(r.hp/r.mhp<.35?'bad':'')+'">'+r.hp+'/'+r.mhp+'</b> · 골드 '+r.gold+'</span><button class="gray" data-a="dk" style="min-height:32px;padding:4px 10px">덱 '+r.deck.length+'</button></div>'+
+  '<div class="prog"><i style="width:'+(r.endless?100:(r.floor-1)/12*100)+'%"></i></div></div>'+
+  (r.relics.length?'<div class="chips">'+r.relics.map(chip).join('')+'</div>':'')}
+function potRow(use){if(!run.pots.length)return'';
+ return '<div class="pots">'+run.pots.map((p,i)=>'<button data-a="'+(use?'pot':'none')+'" data-i="'+i+'">'+POT[p][0]+' · '+POT[p][1]+'</button>').join('')+'</div>'}
+function vTitle(){const sv=ld(KEY,null);const td=todayKey();const dcl=CKEYS[(+td)%4];
+ let h='<h1>심연의 탑</h1><p class="c sub">카드를 모아 12층을 오르고, 탑의 주인을 쓰러뜨리세요</p>';
+ h+='<div class="card c"><div class="sub">기록</div><div>클리어 '+meta.wins+'회 · 도전 '+meta.runs+'회 · 최고 '+Math.min(12,meta.best)+'층'+(meta.endBest>12?' · 무한 최고 '+meta.endBest+'층':'')+'</div><div class="sub">'+CKEYS.map(k=>CLS[k].n+' '+(meta.cw[k]||0)).join(' · ')+' 클리어</div></div>';
+ if(sv&&sv.run)h+='<button class="pri wide" data-a="cont">이어하기 ('+CLS[sv.run.cls].n+' · '+sv.run.floor+'층 · 체력 '+sv.run.hp+'/'+sv.run.mhp+')</button>';
+ h+='<div class="card"><div class="row2" style="gap:8px"><button class="'+(mode==='normal'?'pri':'gray')+'" data-a="mode" data-i="normal" style="flex:1">일반 도전</button><button class="'+(mode==='daily'?'pri':'gray')+'" data-a="mode" data-i="daily" style="flex:1">일일 도전</button></div>';
+ if(mode==='daily'){const dd=meta.daily&&meta.daily.date===td?meta.daily:null;
+  h+='<div class="c" style="margin:10px 0"><div class="big">오늘의 직업: '+CLS[dcl].n+'</div><div class="sub">날짜마다 직업과 시작 상태가 같아요. 하루에 몇 번이든 도전할 수 있습니다.</div><div style="margin-top:6px">'+(dd?'오늘 기록: '+(dd.won?'클리어!':'최고 '+dd.floor+'층'):'오늘은 아직 도전 전')+'</div></div>'}
+ else{h+='<div class="sub c" style="margin-top:8px">직업을 고르세요</div><div class="cls">';
+  CKEYS.forEach(k=>{h+='<button class="'+(selCls===k?'on':'')+'" data-a="cls" data-i="'+k+'"><b>'+CLS[k].n+'</b>'+CLS[k].d+'<br>체력 '+CLS[k].hp+'</button>'});
+  h+='</div><div class="sub c">난이도 단계 (클리어하면 다음 단계가 열려요)</div><div class="row2" style="justify-content:center;gap:8px;margin:8px 0">';
+  for(let i=0;i<=meta.asc;i++)h+='<button class="'+(selAsc===i?'pri':'gray')+'" data-a="asc" data-i="'+i+'" style="min-width:42px">'+i+'</button>';
+  h+='</div>'}
+ h+='<button class="pri wide" data-a="new">새 도전 시작</button></div>';
+ h+='<div class="row2" style="gap:8px"><button class="gray" data-a="codex" style="flex:1">도감 ('+Object.keys(meta.cs).length+'/'+allCards().length+')</button><button class="gray" data-a="ach" style="flex:1">업적 ('+Object.keys(meta.ach).length+'/'+ACH.length+')</button></div>';
+ h+='<button class="gray wide" data-a="guide" style="margin-top:8px">'+(guide?'설명 접기':'처음이세요? 하는 법 보기')+'</button>';
+ if(guide)h+='<div class="card sub" style="line-height:1.6;color:#d8cdf0">- 매 턴 에너지 3으로 카드를 냅니다. 카드 왼쪽 위 숫자가 필요한 에너지예요.<br>- 적 머리 위 주황 글씨가 이번 턴 적의 행동입니다. 막을지 때릴지 정하세요.<br>- 방어는 턴이 끝나면 사라져요.<br>- 취약은 받는 피해 +50%, 약화는 주는 피해 -25%입니다.<br>- 독은 매 턴 끝에 독 수치만큼 피해를 주고 1 줄어듭니다. 방어를 무시해요.<br>- 화상은 매 턴 끝에 피해를 주고 절반으로 줄어듭니다.<br>- 가시는 적이 때릴 때마다 적에게 피해를 돌려줍니다.<br>- 소멸 카드는 한 번 쓰면 이번 전투에서 사라져요.<br>- 층마다 갈래길을 고릅니다. 전투, 정예(유물), 휴식터, 상점, 사건이 있어요.<br>- 휴식터는 가끔 나오고, 바로 다음 층에는 연달아 나오지 않아요.<br>- 빨간 테두리 유물은 저주 유물로, 강하지만 대가가 있어요.<br>- 12층 보스를 잡으면 클리어! 이어서 무한 모드로 계속 오를 수도 있어요.</div>';
+ return h}
+function allCards(){const s={};CKEYS.forEach(k=>['c','u','r'].forEach(g=>CLS[k][g].forEach(i=>s[i]=1)));CKEYS.forEach(k=>CLS[k].deck.forEach(i=>s[i]=1));NEU.c.forEach(i=>s[i]=1);return Object.keys(s)}
+function vCodex(){let h='<div class="card c"><div class="big">도감</div><div class="sub">카드 '+Object.keys(meta.cs).length+'/'+allCards().length+' · 유물 '+Object.keys(meta.rs).length+'/'+Object.keys(RELICS).length+'</div></div>';
+ const sec=(t,ids)=>{h+='<div class="sub" style="margin-top:8px">'+t+'</div><div class="hand">';ids.forEach(i=>{h+=meta.cs[i]?cardBtn(i,0,'none',false):'<button class="cd zz" data-a="none"><b>???</b></button>'});h+='</div>'};
+ CKEYS.forEach(k=>{const s=[];[].concat(CLS[k].deck,CLS[k].c,CLS[k].u,CLS[k].r).forEach(i=>{if(!s.includes(i))s.push(i)});sec(CLS[k].n,s)});
+ sec('공용',NEU.c);
+ h+='<div class="sub" style="margin-top:8px">유물</div><div class="chips">'+Object.keys(RELICS).map(x=>meta.rs[x]?chip(x):'<span class="chip">???</span>').join('')+'</div>';
+ return h}
+function vAch(){let h='<div class="card c"><div class="big">업적</div><div class="sub">'+Object.keys(meta.ach).length+'/'+ACH.length+' 달성</div></div><div class="card">';
+ ACH.forEach(a=>{h+='<div class="ach'+(meta.ach[a[0]]?' on':'')+'"><div><b>'+a[1]+'</b><div class="sub">'+a[2]+'</div></div><span>'+(meta.ach[a[0]]?'달성':'-')+'</span></div>'});return h+'</div>'}
+function vMap(){let h=topbar()+potRow(false)+'<div class="card c"><div class="big">'+run.floor+'층</div><div class="sub">갈 길을 고르세요</div></div><div class="nodes">';
+ run.nodes.forEach((t,i)=>{const nm=t==='boss'?['보스','탑의 주인: '+EN[run.boss].n]:NODE[t];h+='<button data-a="go" data-i="'+i+'"><b>'+nm[0]+'</b><small>'+nm[1]+'</small></button>'});return h+'</div>'}
+function vBattle(){const inc=incoming(),need=Math.max(0,inc-bt.blk);
+ let h=topbar()+'<div class="en">';
+ bt.en.forEach((e,i)=>{
+  if(e.hp<=0){h+='<div class="e dead"><b>'+EN[e.id].n+'</b><small>쓰러짐</small></div>';return}
+  h+='<button class="e'+(i===bt.sel?' sel':'')+'" data-a="sel" data-i="'+i+'"><b>'+EN[e.id].n+'</b><div class="hb"><i style="width:'+Math.max(0,e.hp/e.mhp*100)+'%"></i></div><small>'+e.hp+'/'+e.mhp+(e.blk?' · 방어 '+e.blk:'')+'</small><div class="it">'+intent(e)+'</div><small>'+stt(e)+'</small></button>'});
+ h+='</div>';
+ h+='<div class="pl"><div class="r"><b>나</b><span class="en-badge">에너지 '+bt.e+'</span></div><div class="hb p"><i style="width:'+Math.max(0,run.hp/run.mhp*100)+'%"></i></div>'+
+  '<div class="r"><span>체력 '+run.hp+'/'+run.mhp+' · 방어 '+bt.blk+'</span><span class="sub">'+[bt.str?'힘 +'+bt.str:'',bt.th?'가시 '+bt.th:'',bt.met?'금속화 '+bt.met:'',bt.dem?'악마 '+bt.dem:'',bt.eng?'매 턴 에너지 +'+bt.eng:'',bt.vul?'취약 '+bt.vul:'',bt.weak?'약화 '+bt.weak:''].filter(Boolean).join(' · ')+'</span></div>'+
+  '<div class="'+(need>=run.hp?'warn':'sub')+'">이번 턴 예상 피해 '+inc+' (방어 후 '+need+')'+(need>=run.hp?' - 막지 않으면 쓰러져요!':'')+'</div></div>';
+ h+='<div class="btm">'+potRow(true);
+ h+='<div class="hand">'+bt.hand.map((id,i)=>cardBtn(id,i,'play',card(id).u||card(id).c>bt.e)).join('')+'</div>';
+ h+='<div class="row2 endrow"><span class="sub">뽑을 카드 '+bt.draw.length+' · 버린 카드 '+bt.disc.length+'</span><button class="pri" data-a="end">턴 종료</button></div></div>';
+ return h}
+function vReward(){const r=run.rew;let h=topbar()+'<div class="card c"><div class="big">'+(r.gold?'승리!':'선택')+'</div><div>'+(r.gold?'골드 +'+r.gold:'')+(r.relic?'<br>유물 획득: '+RELICS[r.relic][0]+' ('+RELICS[r.relic][1]+')':'')+(r.pot?'<br>물약 획득: '+POT[r.pot][0]:'')+'</div></div>';
+ h+='<div class="sub c">카드 한 장을 덱에 넣거나 건너뛸 수 있어요</div><div class="hand">'+r.cards.map((id,i)=>cardBtn(id,i,'claim',false)).join('')+'</div>';
+ if(!r.rr)h+='<button class="gray wide" data-a="reroll"'+(adBusy?' disabled':'')+'>광고 보고 카드 다시 뽑기</button>';
+ if(adNote)h+='<div class="sub c" style="margin-top:6px">'+adNote+'</div>';
+ return h+'<button class="gray wide" data-a="claim" data-i="-1">건너뛰기</button>'}
+function vRest(){return topbar()+'<div class="card c"><div class="big">휴식터</div><div class="sub">모닥불 곁에서 숨을 돌립니다</div></div>'+
+ '<button class="pri wide" data-a="rest" data-i="heal" style="padding:16px">쉬기 (체력 '+Math.floor(run.mhp*(T.heal+(has('mask')?.1:0)))+' 회복)</button>'+
+ '<button class="wide" data-a="rest" data-i="up" style="padding:16px"'+(run.deck.some(canUp)?'':' disabled')+'>단련하기 (카드 한 장 강화)</button>'}
+function vEvent(){const ev=EVENTS[run.ev.id];let h=topbar()+'<div class="card c"><div class="big">'+ev.n+'</div><div style="margin-top:6px">'+ev.x+'</div></div>';
+ if(run.ev.res){h+='<div class="card c">'+run.ev.res+'</div><button class="pri wide" data-a="evdone">계속</button>';return h}
+ h+='<div class="ev">';ev.o.forEach((o,i)=>{h+='<button data-a="evo" data-i="'+i+'"'+(o[1]()?'':' disabled')+'>'+(typeof o[0]==='function'?o[0]():o[0])+'</button>'});return h+'</div>'}
+function vShop(){const s=run.shop;let h=topbar()+'<div class="card c"><div class="big">상점</div><div class="sub">골드 '+run.gold+'</div></div>';
+ s.cards.forEach((c,i)=>{h+='<div class="shopit">'+(c.sold?'<div class="card c" style="flex:1;width:100%">품절</div>':cardBtn(c.id,i,'buy',run.gold<c.p))+'<button class="buy" data-a="buy" data-i="'+i+'"'+(c.sold||run.gold<c.p?' disabled':'')+'>'+c.p+' G</button></div>'});
+ const p=s.pot;h+='<div class="shopit"><div class="card" style="flex:1;margin:0">'+(p.sold?'품절':'<b>'+POT[p.id][0]+'</b><br><span class="sub">'+POT[p.id][1]+'</span>')+'</div><button class="buy" data-a="bpot"'+(p.sold||run.gold<p.p||run.pots.length>=slots()?' disabled':'')+'>'+p.p+' G</button></div>';
+ h+='<button class="wide" data-a="rmv"'+(run.gold<s.rm||run.deck.length<=1?' disabled':'')+'>카드 한 장 제거 ('+s.rm+' G)</button>';
+ h+='<button class="wide" data-a="sheal"'+(run.gold<s.heal||run.healed?' disabled':'')+'>치료 +25 ('+s.heal+' G'+(run.healed?', 이미 받음':'')+')</button>';
+ return h+'<button class="pri wide" data-a="leave" style="margin-top:10px">상점에서 나가기</button>'}
+function vEnd(){const w=run.phase==='won';
+ let h='<h1>'+(w?'탑 정복!':'쓰러졌습니다')+'</h1><div class="card c"><div class="big">'+(w?EN[run.boss].n+'을(를) 쓰러뜨렸어요':run.floor+'층에서 여정이 끝났어요'+(run.endless?' (무한 모드)':''))+'</div>'+
+  '<div class="sub" style="margin-top:6px">'+CLS[run.cls].n+' · 덱 '+run.deck.length+'장 · 유물 '+run.relics.length+'개'+(w&&!run.daily&&run.asc===meta.asc-1?'<br>다음 난이도 단계가 열렸어요':'')+'</div></div>';
+ if(run.newAch&&run.newAch.length)h+='<div class="card c"><div class="sub">새 업적</div><b>'+run.newAch.join(', ')+'</b></div>';
+ if(w)h+='<button class="pri wide" data-a="endless">계속 오르기 (무한 모드)</button><div class="sub c">층마다 적이 세지고, 6층마다 보스가 나옵니다</div>';
+ if(!w&&!run.revived)h+='<button class="pri wide" data-a="revive"'+(adBusy?' disabled':'')+'>광고 보고 1회 부활 (체력 50%)</button><div class="sub c">광고를 끝까지 보면 그 자리에서 체력 50%로 다시 일어나요 · 도전 1회당 한 번</div>';
+ if(!w&&adNote)h+='<div class="sub c" style="margin-top:6px">'+adNote+'</div>';
+ return h+'<button class="'+(w?'gray':'pri')+' wide" data-a="title">처음 화면으로</button>'}
+function overlay(){
+ if(pk){const m={up:'강화할 카드 고르기',evup:'강화할 카드 고르기',rm:'제거할 카드 고르기',evrm:'제거할 카드 고르기'}[pk];let h='<div class="card c"><div class="big">'+m+'</div></div><div class="hand">';
+  run.deck.forEach((id,i)=>{const dis=(pk==='up'||pk==='evup')&&!canUp(id);h+=cardBtn(id,i,'pk',dis)});
+  return '<div id="modal"><div class="in">'+h+'</div>'+(pk==='up'||pk==='rm'?'<button class="gray wide" data-a="pkx">취소</button>':'')+'</div></div>'}
+ if(dk){let h='<div class="card c"><div class="big">내 덱 ('+run.deck.length+'장)</div></div><div class="hand">';
+  run.deck.forEach((id,i)=>{h+=cardBtn(id,i,'none',false)});
+  return '<div id="modal"><div class="in">'+h+'</div><button class="pri wide" data-a="dkx">닫기</button></div></div>'}
+ return ''}
+function render(){
+ let h='';
+ if(view==='title')h=vTitle();else if(view==='codex')h=vCodex();else if(view==='ach')h=vAch();
+ else if(run.phase==='map')h=vMap();else if(run.phase==='battle')h=vBattle();else if(run.phase==='reward')h=vReward();
+ else if(run.phase==='rest')h=vRest();else if(run.phase==='shop')h=vShop();else if(run.phase==='event')h=vEvent();else h=vEnd();
+ const appEl=$('app');appEl.className=(view==='run'&&run&&run.phase==='battle')?'battle':'';appEl.innerHTML=h+overlay();
+ document.body.style.overflow=(pk||dk)?'hidden':''}
+
+/* ---------------- 보상형 광고 (부활 · 카드 리롤) ----------------
+ * 토스 앱 안: window.abyssAds(앱인토스 SDK 브리지)로 전면형 리워드 광고를 띄우고,
+ *   SDK가 보내는 userEarnedReward 이벤트에서만 보상을 준다(그냥 닫으면 지급 없음).
+ * 브라우저 미리보기(SDK 없음): 광고가 없으므로 흐름 확인용으로 그대로 지급한다.
+ */
+function watchAd(kind,onReward){
+ if(adBusy)return;
+ const ads=window.abyssAds;
+ const ok=!!(ads&&typeof ads.requestRewardedAd==='function'&&ads.isSupported&&ads.isSupported());
+ const pay=()=>{adBusy=false;adNote='';try{onReward()}catch(err){console.error('[abyss-tower] reward failed',err)}render()};
+ if(!ok){pay();return}
+ adBusy=true;adNote='광고를 불러오는 중...';render();
+ ads.requestRewardedAd({onReward(){if(window.abyssAnalytics)window.abyssAnalytics.log('ad_reward',{kind});pay()},
+  onFail(msg){adBusy=false;adNote=msg||'광고를 볼 수 없어요. 잠시 후 다시 시도해 주세요.';render()}})}
+
+const ACT={
+ cls(i){selCls=i},asc(i){selAsc=+i},mode(i){mode=i},guide(){guide=!guide},
+ /* 사망 시 1회 부활: 현재 전투를 그 자리에서 이어받아 새 턴을 시작한다 */
+ revive(){if(!run||run.phase!=='dead'||run.revived)return;
+  watchAd('revive',()=>{run.revived=1;run.hp=Math.max(1,Math.floor(run.mhp*.5));
+   if(!run.endless&&meta.runs>0)meta.runs--;
+   if(bt){bt.over=null;bt.blk=0;bt.vul=0;bt.weak=0;run.phase='battle';startTurn()}
+   else{run.nodes=run.nodes||genNodes(run.floor);run.phase='map'}
+   saveRun()})},
+ /* 보상 화면당 1회 카드 리롤 */
+ reroll(){if(!run||run.phase!=='reward'||!run.rew||run.rew.rr)return;
+  watchAd('reroll',()=>{run.rew.rr=1;run.rew.cards=rcards(!!run.rew.big)})},
+ codex(){view='codex'},ach(){view='ach'},back(){view='title'},
+ new(){pk=null;dk=false;if(mode==='daily'){const d=todayKey();newRun(CKEYS[(+d)%4],0,d)}else newRun(selCls,selAsc,null)},
+ cont(){const sv=ld(KEY,null);if(sv&&sv.run){run=sv.run;bt=sv.bt;view='run';pk=null}},
+ title(){view='title';run=null;bt=null;pk=null;dk=false;saveRun()},
+ endless(){run.endless=1;run.rew=null;advance()},
+ go(i){const t=run.nodes[+i],f=run.floor;
+  if(t==='battle')startBattle(pick(f<=4?POOLS.e:f<=8?POOLS.m:POOLS.l),'battle');
+  else if(t==='elite')startBattle([pick(f>=7?['knight','shaman','golem','assas']:['knight','shaman','assas'])],'elite');
+  else if(t==='boss'){if(f>12)run.boss=pick(['abyss','hydra']);startBattle([run.boss],'boss')}
+  else if(t==='rest'){run.phase='rest';run.lr=run.floor}else if(t==='shop'){run.shop=genShop();run.phase='shop'}
+  else if(t==='event'){const id=Math.floor(R()*EVENTS.length);run.ev={id,res:null,pend:null,cr:id===CUR_EV?shuf(CK.filter(x=>!has(x))).slice(0,2):[]};run.phase='event'}},
+ sel(i){if(bt&&bt.en[+i]&&bt.en[+i].hp>0)bt.sel=+i},
+ play(i){play(+i)},pot(i){usePot(+i)},end(){endTurn()},
+ claim(i){i=+i;if(i>=0)addCard(run.rew.cards[i]);run.rew=null;advance()},
+ rest(i){if(i==='heal'){run.hp=Math.min(run.mhp,run.hp+Math.floor(run.mhp*(T.heal+(has('mask')?.1:0))));advance()}else pk='up'},
+ evo(i){const o=EVENTS[run.ev.id].o[+i];if(!o[1]())return;const r=o[2]();
+  if(r==='PICKUP'){run.hp-=12;run.ev.pend='up';pk='evup'}else if(r==='PICKRM'){run.gold-=40;run.ev.pend='rm';pk='evrm'}else if(r==='REWARD'){}else run.ev.res=r},
+ evdone(){advance()},
+ pk(i){i=+i;
+  if(pk==='up'){if(!canUp(run.deck[i]))return;run.deck[i]+='+';pk=null;advance()}
+  else if(pk==='rm'){if(run.gold<run.shop.rm)return;run.gold-=run.shop.rm;run.deck.splice(i,1);run.rm++;run.shop.rm=sp(75+25*run.rm);pk=null}
+  else if(pk==='evup'){if(!canUp(run.deck[i]))return;run.deck[i]+='+';run.ev.pend=null;run.ev.res='제단의 힘이 카드에 깃들었습니다.';pk=null}
+  else if(pk==='evrm'){run.deck.splice(i,1);run.ev.pend=null;run.ev.res='카드를 한 장 덜어냈습니다.';pk=null}},
+ pkx(){pk=null},dk(){dk=true},dkx(){dk=false},
+ buy(i){const c=run.shop.cards[+i];if(c.sold||run.gold<c.p)return;run.gold-=c.p;c.sold=1;addCard(c.id)},
+ bpot(){const p=run.shop.pot;if(p.sold||run.gold<p.p||run.pots.length>=slots())return;run.gold-=p.p;p.sold=1;run.pots.push(p.id)},
+ rmv(){if(run.gold>=run.shop.rm&&run.deck.length>1)pk='rm'},
+ sheal(){const s=run.shop;if(run.gold<s.heal||run.healed)return;run.gold-=s.heal;run.healed=1;run.hp=Math.min(run.mhp,run.hp+25)},
+ leave(){run.shop=null;advance()},
+ none(){}
+};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b||b.disabled)return;
+ const f=ACT[b.dataset.a];if(!f)return;f(b.dataset.i);if(run)saveRun();render()});
+render();
+</script></body></html>
