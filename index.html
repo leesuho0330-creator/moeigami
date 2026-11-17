@@ -389,6 +389,52 @@
     white-space:nowrap; flex:0 0 auto;
   }
 
+  /* ================== 공유 방명록 ================== */
+  .gb-entry{
+    display:flex; align-items:center; gap:12px; margin:4px 16px 10px; padding:13px 16px;
+    background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
+  }
+  .gb-entry:active{background:var(--card2);}
+  .gb-entry .gbe-ic{
+    width:38px;height:38px;border-radius:12px;flex:0 0 38px;display:grid;place-items:center;
+    background:var(--accent-soft); color:var(--accent); font-size:18px;
+  }
+  .gb-entry .gbe-tx{flex:1;min-width:0;}
+  .gb-entry .gbe-tx b{display:block;font-size:14.5px;font-weight:800;letter-spacing:-.01em;}
+  .gb-entry .gbe-tx span{display:block;font-size:11.5px;color:var(--sub);margin-top:2px;font-weight:600;}
+  .gb-entry .gbe-go{font-size:12px;font-weight:800;color:var(--brand);flex:0 0 auto;}
+
+  .gb-form{margin:0 16px 12px;}
+  .gb-nick{display:flex; gap:8px; align-items:center; margin-bottom:8px;}
+  .gb-nick input{
+    flex:1;min-width:0;background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:11px 14px;font-size:14px;font-weight:700;color:var(--text);outline:none;box-shadow:var(--shadow);
+  }
+  .gb-msgrow{display:flex; gap:8px; align-items:stretch;}
+  .gb-msgrow input{
+    flex:1;min-width:0;background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:13px 14px;font-size:14px;font-weight:600;color:var(--text);outline:none;box-shadow:var(--shadow);
+  }
+  .gb-msgrow input::placeholder{color:var(--sub2); font-weight:600;}
+  .gb-send{
+    flex:0 0 auto;min-width:72px;border-radius:14px;background:var(--brand);color:#fff;
+    font-size:14px;font-weight:800;padding:0 16px;box-shadow:0 3px 10px rgba(14,159,110,.24);
+  }
+  .gb-send:disabled{background:var(--card2);color:var(--sub2);box-shadow:none;}
+  .gb-send:active{transform:scale(.97);}
+  .gb-hint{font-size:11.5px;color:var(--sub);font-weight:600;margin:8px 4px 0;min-height:15px;}
+  .gb-hint.warn{color:var(--up);}
+
+  .gb-list{background:var(--card);border-radius:var(--radius);margin:0 16px 12px;box-shadow:var(--shadow);overflow:hidden;}
+  .gb-item{padding:13px 16px;position:relative;}
+  .gb-item + .gb-item::before{content:"";position:absolute;left:16px;right:16px;top:0;height:1px;background:var(--line);}
+  .gb-item .gh{display:flex;align-items:baseline;gap:8px;}
+  .gb-item .gh b{font-size:13.5px;font-weight:800;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .gb-item .gh span{font-size:11px;color:var(--sub2);font-weight:600;margin-left:auto;flex:0 0 auto;}
+  .gb-item p{margin:5px 0 0;font-size:13.5px;line-height:1.5;color:var(--text);word-break:break-word;white-space:pre-wrap;}
+  .gb-empty{padding:26px 16px;text-align:center;font-size:13px;color:var(--sub);font-weight:600;line-height:1.6;}
+  .gb-empty b{display:block;font-size:22px;margin-bottom:6px;}
+
   /* --- 긴급 속보 · 찌라시 --- */
   .rumor{
     position:relative; margin:0 16px 10px; border-radius:18px; padding:15px 16px 13px;
@@ -1086,6 +1132,11 @@
       <button class="chip on" data-ranksort="asset">💰 총자산 순</button>
       <button class="chip" data-ranksort="rate">📈 수익률 순</button>
     </div>
+    <div class="gb-entry" id="gbEntry">
+      <div class="gbe-ic">💬</div>
+      <div class="gbe-tx"><b>방명록</b><span>다른 개미들이 남긴 한마디</span></div>
+      <div class="gbe-go">보기</div>
+    </div>
     <div class="sec-title"><span id="rankSecTitle">실시간 총자산 순위</span><span class="more" id="rankMyPos">나 + 라이벌 개미 10</span></div>
     <div class="list" id="rankList"></div>
     <div class="sec-title"><span>업적</span><span class="more" id="achCount">0/13</span></div>
@@ -1194,6 +1245,26 @@
       <div class="guest-input"><input id="vGuestInput" placeholder="방명록 한마디" maxlength="60" autocomplete="off"><button id="vGuestSend">남기기</button></div>
     </div>
     <div class="notice">친구 코드로 공유된 정보만 보여요. 서버 없이 내 폰에만 저장돼요.</div>
+    <div style="height:8px"></div>
+  </main>
+
+  <!-- ============ 방명록 ============ -->
+  <main class="screen" id="screen-guest">
+    <div class="hdr"><h1>방명록</h1>
+      <button class="iconbtn" id="gbRefresh" aria-label="새로고침">↻</button>
+      <button class="iconbtn" id="themeBtn9" aria-label="테마 변경"><span>🌙</span></button>
+    </div>
+    <div class="gb-form">
+      <div class="gb-nick"><input id="gbNick" maxlength="12" placeholder="닉네임" autocomplete="off"></div>
+      <div class="gb-msgrow">
+        <input id="gbMsg" maxlength="120" placeholder="한마디 남기기 (최대 120자)" autocomplete="off">
+        <button class="gb-send" id="gbSend">등록</button>
+      </div>
+      <div class="gb-hint" id="gbHint"></div>
+    </div>
+    <div class="sec-title"><span>최근 글</span><span class="more" id="gbCount">-</span></div>
+    <div class="gb-list" id="gbList"></div>
+    <div class="notice">모든 이용자에게 공개되는 글판이에요. 욕설·광고는 예고 없이 지워질 수 있어요.</div>
     <div style="height:8px"></div>
   </main>
 
@@ -3219,7 +3290,7 @@ function pushTrade(t){
 /* ---------------- 화면 전환 ---------------- */
 function showScreen(name, hideTab){
   $$(".screen").forEach(el => el.classList.remove("active"));
-  const map = { home: "#screen-home", invest: "#screen-invest", history: "#screen-history", detail: "#screen-detail", rank: "#screen-rank", shop: "#screen-shop", challenge: "#screen-challenge", visit: "#screen-visit" };
+  const map = { home: "#screen-home", invest: "#screen-invest", history: "#screen-history", detail: "#screen-detail", rank: "#screen-rank", shop: "#screen-shop", challenge: "#screen-challenge", visit: "#screen-visit", guest: "#screen-guest" };
   const el = $(map[name]);
   if (el) el.classList.add("active");
   $("#tabbar").classList.toggle("hidden", !!hideTab);
@@ -3231,7 +3302,8 @@ function showScreen(name, hideTab){
   if (name === "shop") { activeTab = "shop"; renderShop(); renderBots(); if (shopView === "room") renderRoom(); }
   if (name === "challenge") { activeTab = "challenge"; renderChallenge(); }
   if (name === "visit") { activeTab = "visit"; renderVisit(); }
-  $$("#tabbar button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  if (name === "guest") { gbOpen(); } else { gbStopTicker(); }
+  $$("#tabbar button").forEach(b => b.classList.toggle("on", b.dataset.tab === (name === "guest" ? "rank" : name)));
   if (name !== "detail" && el) el.scrollTop = 0;
 }
 
@@ -3242,6 +3314,7 @@ window.moeigamiBack = function(){
   if (cur.id === "screen-detail"){ showScreen("home"); return true; }
   if (cur.id === "screen-history"){ showScreen("invest"); return true; }
   if (cur.id === "screen-visit"){ showScreen("shop"); switchShopView("room"); return true; }
+  if (cur.id === "screen-guest"){ showScreen("rank"); return true; }
   return false;   // 탭 루트에서는 미니앱 종료
 };
 
@@ -5972,6 +6045,18 @@ function bind(){
     if (r) openVisit(rivalProfile(r.n));
   });
 
+  // 공유 방명록
+  const gbe = $("#gbEntry"); if (gbe) gbe.addEventListener("click", () => showScreen("guest"));
+  const gbr = $("#gbRefresh"); if (gbr) gbr.addEventListener("click", () => gbLoad());
+  const gbs = $("#gbSend"); if (gbs) gbs.addEventListener("click", gbSend);
+  const gbi = $("#gbMsg");
+  if (gbi){
+    gbi.addEventListener("input", gbSyncSend);
+    gbi.addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); gbSend(); } });
+  }
+  const gbn = $("#gbNick"); if (gbn) gbn.addEventListener("input", gbSyncSend);
+  window.addEventListener("online", () => { if ($("#screen-guest").classList.contains("active")) gbLoad(); });
+
   const rsb = $("#rankSortBar");
   if (rsb) rsb.addEventListener("click", e => {
     const b = e.target.closest("[data-ranksort]");
@@ -6064,6 +6149,184 @@ function resetAccount(){
   updateHomeLive(); updateChallengeBar();
   if ($("#screen-detail").classList.contains("active")) showScreen("home");
   toast("계좌를 초기화했어요 · 예수금 1,000만원 (남은 횟수 " + resetLeft() + "/" + resetMax() + ")");
+}
+
+/* =========================================================
+   공유 방명록 — 두 앱이 같은 표를 쓰고, 앱별로 글을 나눠 봅니다.
+   (Supabase REST: anon 키는 공개용이며, 정책상 읽기·쓰기만 됩니다)
+   ========================================================= */
+const GB_CFG = {
+  url: "https://pvumoslkxfdjhvnylsvo.supabase.co",
+  key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2dW1vc2xreGZkamh2bnlsc3ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ5MTA0MDYsImV4cCI6MjExMDQ4NjQwNn0.MbEwyxRLMwYkrlJXTnrdwraK-UJpJy3e1asCswu36Ls",
+  app: "moeigami"
+};
+const GB_NICK_KEY = "moeigami_gb_nick_v1";
+const GB_CD_MS = 10000;
+const GB_LIMIT = 30;
+const GB_BAD = ["씨발", "시발", "ㅅㅂ", "병신", "ㅂㅅ", "좆", "지랄", "개새끼", "미친놈", "애미", "fuck", "shit", "카톡", "텔레그램", "오픈채팅"];
+const gb = { rows: [], at: 0, busy: false, loaded: false, err: "", cdUntil: 0, timer: null };
+
+function gbNickSaved(){
+  try { const v = localStorage.getItem(GB_NICK_KEY); if (v) return v; } catch(e) {}
+  return (state.nick || "개미");
+}
+function gbNickSave(v){ try { localStorage.setItem(GB_NICK_KEY, v); } catch(e) {} }
+function gbTrim(v, max){
+  return String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
+function gbBadHit(t){
+  const s = String(t || "").toLowerCase().replace(/\s+/g, "");
+  return GB_BAD.some(w => s.indexOf(w) >= 0);
+}
+function gbAgo(iso){
+  const t = Date.parse(iso);
+  if (!isFinite(t)) return "";
+  const m = Math.floor(Math.max(0, Date.now() - t) / 60000);
+  if (m < 1) return "방금";
+  if (m < 60) return m + "분 전";
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + "시간 전";
+  const d = Math.floor(h / 24);
+  if (d < 7) return d + "일 전";
+  const dt = new Date(t);
+  return (dt.getMonth() + 1) + "/" + dt.getDate();
+}
+function gbApi(query, opts){
+  const base = String(GB_CFG.url || "").replace(/\/$/, "");
+  const headers = Object.assign({
+    apikey: GB_CFG.key,
+    Authorization: "Bearer " + GB_CFG.key,
+    "Content-Type": "application/json"
+  }, (opts && opts.headers) || {});
+  const ctl = (typeof AbortController === "function") ? new AbortController() : null;
+  const tmo = ctl ? setTimeout(() => { try { ctl.abort(); } catch(e) {} }, 9000) : null;
+  const init = Object.assign({}, opts, { headers });
+  if (ctl) init.signal = ctl.signal;
+  const done = () => { if (tmo) clearTimeout(tmo); };
+  return fetch(base + "/rest/v1/guestbook" + (query || ""), init).then(
+    r => { done(); return r; },
+    e => { done(); throw e; }
+  );
+}
+function gbCdLeft(){ return Math.max(0, gb.cdUntil - Date.now()); }
+function gbSyncSend(){
+  const send = $("#gbSend");
+  if (!send) return;
+  const left = gbCdLeft();
+  const msg = $("#gbMsg") ? gbTrim($("#gbMsg").value, 120) : "";
+  if (gb.busy){ send.disabled = true; send.textContent = "등록 중"; return; }
+  if (left > 0){ send.disabled = true; send.textContent = Math.ceil(left / 1000) + "초"; return; }
+  send.disabled = !msg;
+  send.textContent = "등록";
+}
+function gbPaint(){
+  const list = $("#gbList");
+  if (!list) return;
+  const cnt = $("#gbCount");
+  if (gb.err){
+    if (cnt) cnt.textContent = "불러오기 실패";
+    list.innerHTML = '<div class="gb-empty"><b>😵</b>' + escapeAttr(gb.err) + '</div>';
+    return;
+  }
+  if (!gb.loaded){
+    if (cnt) cnt.textContent = "불러오는 중";
+    list.innerHTML = '<div class="gb-empty">방명록을 불러오는 중…</div>';
+    return;
+  }
+  if (!gb.rows.length){
+    if (cnt) cnt.textContent = "0개";
+    list.innerHTML = '<div class="gb-empty"><b>💬</b>아직 글이 없어요.<br>첫 한마디를 남겨 보세요!</div>';
+    return;
+  }
+  if (cnt) cnt.textContent = gb.rows.length + "개";
+  list.innerHTML = gb.rows.map(r =>
+    '<div class="gb-item"><div class="gh"><b>' + escapeAttr(r.nickname) + '</b><span>' + escapeAttr(gbAgo(r.created_at)) + '</span></div>'
+    + '<p>' + escapeAttr(r.message) + '</p></div>'
+  ).join("");
+}
+async function gbLoad(){
+  if (gb.busy) return;
+  gb.busy = true;
+  gb.err = "";
+  gbPaint();
+  gbSyncSend();
+  if (!navigator.onLine){ gb.err = "인터넷에 연결되어 있지 않아요."; gb.busy = false; gbPaint(); gbSyncSend(); return; }
+  try {
+    const q = "?select=id,nickname,message,created_at&app=eq." + encodeURIComponent(GB_CFG.app)
+      + "&order=created_at.desc&limit=" + GB_LIMIT;
+    const res = await gbApi(q, { method: "GET" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const rows = await res.json();
+    gb.rows = Array.isArray(rows) ? rows : [];
+    gb.loaded = true;
+    gb.at = Date.now();
+  } catch (e) {
+    gb.err = navigator.onLine ? "방명록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요." : "인터넷에 연결되어 있지 않아요.";
+  } finally {
+    gb.busy = false;
+    gbPaint();
+    gbSyncSend();
+  }
+}
+async function gbSend(){
+  const nickIn = $("#gbNick"), msgIn = $("#gbMsg"), hint = $("#gbHint");
+  if (!nickIn || !msgIn || gb.busy || gbCdLeft() > 0) return;
+  const nick = gbTrim(nickIn.value, 12);
+  const msg = gbTrim(msgIn.value, 120);
+  const warn = t => { if (hint){ hint.textContent = t; hint.classList.add("warn"); } };
+  if (!nick){ warn("닉네임을 입력해 주세요."); nickIn.focus(); return; }
+  if (!msg){ warn("한마디를 입력해 주세요."); msgIn.focus(); return; }
+  if (gbBadHit(nick) || gbBadHit(msg)){ warn("사용할 수 없는 표현이 들어 있어요. 부드럽게 다시 써 주세요."); return; }
+  if (!navigator.onLine){ warn("인터넷에 연결되어 있지 않아요."); return; }
+  gb.busy = true;
+  gbSyncSend();
+  if (hint){ hint.textContent = "남기는 중…"; hint.classList.remove("warn"); }
+  try {
+    const res = await gbApi("", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ app: GB_CFG.app, nickname: nick, message: msg })
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    let row = null;
+    try { const rows = await res.json(); row = Array.isArray(rows) ? rows[0] : null; } catch(e) {}
+    if (!row) row = { id: "tmp" + Date.now(), nickname: nick, message: msg, created_at: new Date().toISOString() };
+    gb.rows = [row].concat(gb.rows).slice(0, GB_LIMIT);
+    gb.loaded = true;
+    gb.err = "";
+    gbNickSave(nick);
+    msgIn.value = "";
+    gb.cdUntil = Date.now() + GB_CD_MS;
+    if (hint){ hint.textContent = "방명록에 남겼어요!"; hint.classList.remove("warn"); }
+    toast("💬 방명록에 남겼어요");
+  } catch (e) {
+    if (hint){ hint.textContent = "등록하지 못했어요. 잠시 후 다시 시도해 주세요."; hint.classList.add("warn"); }
+  } finally {
+    gb.busy = false;
+    gbPaint();
+    gbSyncSend();
+  }
+}
+function gbOpen(){
+  const nickIn = $("#gbNick"), msgIn = $("#gbMsg"), hint = $("#gbHint");
+  if (nickIn) nickIn.value = gbNickSaved();
+  if (msgIn) msgIn.value = "";
+  if (hint){ hint.textContent = "닉네임은 이 기기에 기억해 둘게요."; hint.classList.remove("warn"); }
+  gbPaint();
+  gbSyncSend();
+  if (!gb.loaded || Date.now() - gb.at > 60000) gbLoad();
+  gbStartTicker();
+}
+function gbStartTicker(){
+  if (gb.timer) return;
+  gb.timer = setInterval(() => {
+    if (!gbCdLeft()){ gbStopTicker(); }
+    gbSyncSend();
+  }, 500);
+}
+function gbStopTicker(){
+  if (gb.timer){ clearInterval(gb.timer); gb.timer = null; }
+  if (gbCdLeft() <= 0) gbSyncSend();
 }
 
 /* ---------------- 부팅 ---------------- */
