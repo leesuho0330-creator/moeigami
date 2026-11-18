@@ -884,6 +884,14 @@
   .sheet .share-btns{display:flex; gap:8px; margin-top:10px;}
   .sheet .share-btns button{flex:1; padding:13px 0; border-radius:12px; font-size:13px; font-weight:800; background:var(--card2); border:1px solid var(--line); color:var(--text);}
   .sheet .share-btns button.prim{background:var(--accent); color:#fff; border-color:var(--accent);}
+  /* 복귀 리포트 */
+  .share-card.sc-return{margin:0 0 2px;}
+  .share-card .sc-rate.sc-up{color:#8CE3BE;}
+  .share-card .sc-rate.sc-down{color:#FFB3AB;}
+  .share-card .sc-row b.sc-up{color:#8CE3BE;}
+  .share-card .sc-row b.sc-down{color:#FFB3AB;}
+  .sheet .sub2{font-size:11.5px; font-weight:700; margin-top:3px;}
+  .sheet .sub2 .up{color:var(--up);} .sheet .sub2 .down{color:var(--down);} .sheet .sub2 .flat{color:var(--sub2);}
   .sheet .nicksheet input{width:100%; padding:13px 14px; border-radius:12px; border:1px solid var(--line); background:var(--card2); color:var(--text); font-size:16px; font-weight:800; outline:none;}
 </style>
 </head>
@@ -908,6 +916,7 @@
       <div class="lbl">내 총 자산</div>
       <div class="amt" id="homeAssetAmt">0원</div>
       <div class="sub" id="homeAssetSub"></div>
+      <div class="sub2" id="homeToday" style="font-size:11.5px;font-weight:700;margin-top:3px"></div>
       <div class="sub2" id="homePassive" style="font-size:11.5px;color:var(--accent);font-weight:700;margin-top:3px"></div>
     </div>
 
@@ -1660,7 +1669,8 @@ function newState(){
     boosterUntil: 0,                  // 수익 2배 부스터 종료 시각(ms)
     boostTrial: { day: "", count: 0 },// 부스터 광고 무료 체험(하루 3회)
     attend: { last: "", streak: 0, best: 0, total: 0, lastReward: 0 },   // 연속 출석
-    missions: { day: "", done: [], all: false }                          // 일일 미션 3개
+    missions: { day: "", done: [], all: false },                         // 일일 미션 3개
+    dayOpen: { d: "", v: 0 }                                             // 오늘 손익 기준 자산
   };
 }
 
@@ -1763,6 +1773,10 @@ function load(){
       done: Array.isArray(p.missions.done) ? p.missions.done.filter(id => typeof id === "string").slice(0, 6) : [],
       all: !!p.missions.all
     };
+    if (p.dayOpen && typeof p.dayOpen === "object") state.dayOpen = {
+      d: String(p.dayOpen.d || ""),
+      v: Math.max(0, Number(p.dayOpen.v) || 0)
+    };
     /* 이름이 비어 있는 옛 거래내역은 지금 종목명/폐지 이력으로 채워 넣는다 */
     (state.trades || []).forEach(t => {
       if (!t || t.name) return;
@@ -1797,7 +1811,7 @@ function save(force){
       dynamic: DYN,
       hunger: state.hunger, hungerAt: state.hungerAt,
       premium: state.premium, boosterUntil: state.boosterUntil,
-      boostTrial: state.boostTrial, attend: state.attend, missions: state.missions
+      boostTrial: state.boostTrial, attend: state.attend, missions: state.missions, dayOpen: state.dayOpen
     }));
   } catch(e) {}
   saveTicks(force);
@@ -2301,11 +2315,14 @@ function sanitizeTicks(){
   });
 }
 
-function catchUpOffline(){
-  const last = Number(state.lastTickAt) || 0;
+function catchUpOffline(lastSeen){
+  /* 부팅 직후에는 출석 보상 저장이 lastTickAt을 지금으로 옮겨 버리므로,
+     호출한 쪽이 미리 잡아 둔 마지막 접속 시각을 넘겨 줄 수 있어요. */
+  const last = Number(lastSeen) || Number(state.lastTickAt) || 0;
   if (!last) { state.lastTickAt = Date.now(); return; }
   const elapsed = Date.now() - last;
   if (elapsed < TICK_MS) return;
+  const assetBefore = totalAsset();
   /* 부재중 포만감을 먼저 반영하고, 0%가 된 뒤 구간은 수익에서 제외한다 */
   const hungerBefore = state.hunger == null ? 100 : state.hunger;
   updateHunger(Date.now());
@@ -2337,7 +2354,61 @@ function catchUpOffline(){
     if (pauseMin > 0.05) msg += " (포만감 0% 구간 제외)";
     toast(msg);
   }
+  /* 10분 이상 비웠으면 돌아온 순간을 한 장으로 정리해 보여 준다 */
+  if (elapsed >= 10 * 60 * 1000 && !state.challenge){
+    const scrim = $("#scrim");
+    if (scrim && !scrim.classList.contains("show")){
+      const assetAfter = totalAsset();
+      setTimeout(() => {
+        const sc = $("#scrim");
+        if (!sc || sc.classList.contains("show") || state.challenge) return;
+        showReturnReport({ awayMs: elapsed, before: assetBefore, delta: assetAfter - assetBefore, offlineIncome: offlineIncome });
+      }, 1200);
+    }
+  }
 }
+/* ---------------- 복귀 리포트 ----------------
+   자리를 비운 사이 계좌에 무슨 일이 있었는지 한 장으로 정리해 보여 줘요. */
+function awayLabel(ms){
+  const m = Math.max(1, Math.floor(ms / 60000));
+  if (m >= 1440){ const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60); return d + "일" + (h ? " " + h + "시간" : ""); }
+  if (m >= 60){ const h = Math.floor(m / 60), mm = m % 60; return h + "시간" + (mm ? " " + mm + "분" : ""); }
+  return m + "분";
+}
+function topMover(){
+  let best = null;
+  STOCKS.forEach(s => {
+    const o = state.opens[s.code], p = state.prices[s.code];
+    if (!(o > 0) || !(p > 0)) return;
+    const r = ((p - o) / o) * 100;
+    if (!best || r > best.r) best = { name: s.name, r: r };
+  });
+  return best;
+}
+function showReturnReport(info){
+  const sheet = $("#sheet"), scrim = $("#scrim");
+  if (!sheet || !scrim) return;
+  const d = Math.round(info.delta || 0), before = Math.max(1, info.before || 1);
+  const rate = (d / before) * 100;
+  const mv = topMover(), mi = missionState(), a = attendState();
+  const rows = [];
+  if (info.offlineIncome > 0) rows.push('<div class="sc-row"><span>💰 패시브 수익</span><b>+' + shortWon(info.offlineIncome) + '원</b></div>');
+  if (mv) rows.push('<div class="sc-row"><span>🔥 오늘 가장 오른 종목</span><b class="' + (mv.r >= 0 ? "sc-up" : "sc-down") + '">' + mv.name + " " + pctStr(mv.r) + '</b></div>');
+  if (a.streak >= 2) rows.push('<div class="sc-row"><span>📅 연속 출석</span><b>' + a.streak + '일째</b></div>');
+  rows.push('<div class="sc-row"><span>🎯 오늘의 미션</span><b>' + mi.done.length + '/' + MISSIONS.length + '</b></div>');
+  sheet.innerHTML =
+    '<div class="share-card sc-return">'
+    + '<div class="sc-top">⏱ 다시 오셨네요</div>'
+    + '<div class="sc-nick">' + awayLabel(info.awayMs) + ' 만에 돌아왔어요</div>'
+    + '<div class="sc-rate ' + (d >= 0 ? "sc-up" : "sc-down") + '">' + (d > 0 ? "+" : "") + wonBig(d) + '</div>'
+    + '<span class="sc-title">' + (d === 0 ? "계좌는 그대로예요 · 오늘도 시장은 움직이는 중" : "총자산 " + pctStr(rate) + " · 자리를 비운 사이 시장이 움직였어요") + '</span>'
+    + '<div class="sc-rows">' + rows.join("") + '</div></div>'
+    + '<button class="go" id="retGo">시장 보기</button>'
+    + '<button class="cancel" id="sheetCancel">닫기</button>';
+  scrim.classList.add("show");
+  noteInput();
+}
+
 /* 포만감이 0%까지 버티는 시간(분) */
 function hungeredMinutes(hunger){
   const h = clamp(Number(hunger) || 0, 0, 100);
@@ -2361,6 +2432,14 @@ function stockEval(){
 function totalAsset(){
   const { ev } = stockEval();
   return state.cash + ev + posEquity() + flexValue();
+}
+/* 오늘 손익의 기준 — 날짜가 바뀌면 그 순간의 총자산을 새 기준으로 잡아요 */
+function dayBase(){
+  const today = adToday();
+  if (!state.dayOpen || state.dayOpen.d !== today || !isFinite(state.dayOpen.v)){
+    state.dayOpen = { d: today, v: totalAsset() };
+  }
+  return state.dayOpen;
 }
 /* 상점에서 산 아이템(부동산·플렉스)의 보유 가치 — 구매가의 80%로 총자산에 잡힌다.
    사자마자 수익률이 폭락하거나 레벨이 내려가던 문제를 막는다. */
@@ -2846,6 +2925,13 @@ function updateHomeLive(){
     const pm = economyPerMin();
     const bt = boosterActive() ? " · ⚡2배 " + boosterClock() : "";
     hp.textContent = pm > 0 ? ("💰 패시브 +" + fmt(pm) + "원/분" + bt) : (boosterActive() ? "⚡ 수익 2배 부스터 " + boosterClock() + " 남음" : "");
+  }
+  const td = $("#homeToday");
+  if (td){
+    const db = dayBase();
+    const dv = total - db.v;
+    const dr = db.v ? (dv / db.v) * 100 : 0;
+    td.innerHTML = '<span class="' + cls(dv) + '">오늘 ' + (dv > 0 ? "+" : "") + fmt(dv) + '원 (' + pctStr(dr) + ')</span>';
   }
   updateBoostBadge();
   if (sub) sub.innerHTML = '<span class="' + cls(pl) + '">' + signed(pl) + '원 (' + pctStr(r) + ')</span><span style="color:var(--sub2)">· 총 수익률</span>';
@@ -5990,6 +6076,7 @@ function bind(){
       return;
     }
     if (e.target.id === "sheetCancel") closeSheet();
+    if (e.target.id === "retGo"){ closeSheet(); showScreen("home"); return; }
     if (e.target.id === "chalAgain"){ closeSheet(); showScreen("challenge"); }
     if (e.target.id === "chalAgain2"){ closeSheet(); showScreen("challenge"); }
     if (e.target.id === "nickGo"){ saveNick(); return; }
@@ -6335,6 +6422,8 @@ function boot(){
   applyTheme();
   initTicks();
   ensureOpens(Date.now());
+  dayBase();                      // 오늘 손익 기준은 복귀 정산 전에 잡아 둔다
+  const lastSeen = Number(state.lastTickAt) || 0;   // 출석 보상 저장보다 먼저 잡아 둔다
   const att = checkAttendance();
   missionState();                 // 날짜가 바뀌었으면 오늘 미션으로 리셋
   if (state.challenge && Date.now() >= state.challenge.endsAt) endChallenge(true, true);
@@ -6357,7 +6446,7 @@ function boot(){
   initRivals();
   bootDuel();
   if (att) setTimeout(() => toast("📅 " + att.day + "일차 출석! +" + shortWon(att.reward) + "원" + (att.streak >= 2 ? " · 🔥 " + att.streak + "일 연속" : "")), 800);
-  catchUpOffline();
+  catchUpOffline(lastSeen);
   if (!state.nextRumorAt || state.nextRumorAt < Date.now() + 15000){
     state.nextRumorAt = Date.now() + RUMOR_FIRST[0] + Math.random() * (RUMOR_FIRST[1] - RUMOR_FIRST[0]);
   }
