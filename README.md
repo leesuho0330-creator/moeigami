@@ -175,3 +175,6 @@ moeigami-ait/
 
 자세한 입력 문구와 순서는 **`store/console-draft.md`** 참고.
 콘솔: https://apps-in-toss.toss.im/console
+
+- 2026-11-19 01:39 `20261119-13` 번들 업로드 → 테스트 모달 확인 → **검토 요청 제출(`검토 중`)**. 출시 노트: 복귀 리포트·오늘 손익 줄 추가, 하루 첫 접속 오프라인 정산 버그 수정, 저장 데이터(`moeigami_v2`) 유지. AI 스크린샷 자동 채우기는 미체크(기존 스크린샷 유지).
+  증빙: `console-shots/moeigami-20261119-13-review-submitted.png`, `console-shots/moeigami-20261119-13-review-modal.png`. 제출 시점 출시본은 `20261118-12`.
