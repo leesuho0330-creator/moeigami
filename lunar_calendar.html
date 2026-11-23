@@ -1,0 +1,2158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070b18">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="양력·음력 변환과 24절기, 공휴일, 간지, 달 모양을 한 화면에서 보는 달력">
+<title>음력 달력</title>
+<style>
+:root {
+  --bg-0: #05070f;
+  --bg-1: #0a1024;
+  --bg-2: #131c38;
+  --ink: #eef2ff;
+  --ink-2: #b7c1de;
+  --ink-3: #7b86a8;
+  --gold: #ffd48a;
+  --gold-2: #f6b85c;
+  --peri: #93a9ff;
+  --mint: #93e3cf;
+  --rose: #ff93a3;
+  --sky: #8bb8ff;
+  --glass: rgba(255, 255, 255, 0.055);
+  --glass-2: rgba(255, 255, 255, 0.085);
+  --line: rgba(255, 255, 255, 0.09);
+  --line-2: rgba(255, 255, 255, 0.14);
+  --radius: 22px;
+  --shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.9), 0 2px 10px -4px rgba(0, 0, 0, 0.6);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html {
+  margin: 0;
+  padding: 0;
+  background: #05070f;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard Variable", Pretendard,
+    "Noto Sans KR", "Malgun Gothic", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 밤하늘 배경 ---------- */
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(120% 80% at 82% -8%, rgba(147, 169, 255, 0.22) 0%, rgba(147, 169, 255, 0) 55%),
+    radial-gradient(90% 60% at 12% 0%, rgba(255, 212, 138, 0.10) 0%, rgba(255, 212, 138, 0) 50%),
+    radial-gradient(70% 50% at 76% 26%, rgba(103, 120, 200, 0.16) 0%, rgba(103, 120, 200, 0) 65%),
+    radial-gradient(64% 48% at 20% 74%, rgba(84, 104, 176, 0.13) 0%, rgba(84, 104, 176, 0) 68%),
+    radial-gradient(140% 100% at 50% 110%, rgba(40, 58, 112, 0.55) 0%, rgba(10, 16, 36, 0) 62%),
+    linear-gradient(180deg, #090f20 0%, #0c142c 32%, #101b39 64%, #080c18 100%);
+  overflow: hidden;
+}
+
+.moon-glow {
+  position: absolute;
+  top: -90px;
+  right: -70px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 226, 176, 0.20) 0%, rgba(255, 212, 138, 0.07) 38%, rgba(255, 212, 138, 0) 70%);
+  filter: blur(2px);
+  animation: breathe 12s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+.stars { position: absolute; inset: 0; }
+
+.sky::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 34% at 22% 26%, rgba(147, 169, 255, 0.055) 0%, rgba(147, 169, 255, 0) 70%),
+    radial-gradient(150% 100% at 50% 120%, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 55%);
+  pointer-events: none;
+}
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  animation: twinkle var(--dur, 5s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes twinkle {
+  0%, 100% { opacity: var(--o, 0.5); transform: scale(1); }
+  50% { opacity: calc(var(--o, 0.5) * 0.35); transform: scale(0.8); }
+}
+
+/* ---------- 레이아웃 ---------- */
+.app {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: calc(18px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
+}
+
+header.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 4px 14px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.brand .mark {
+  width: 27px;
+  height: 27px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 0 9px rgba(255, 212, 138, 0.45));
+}
+
+.brand small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 0.16em;
+  margin-top: 2px;
+}
+
+.today-chip {
+  text-align: right;
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.5;
+  padding-top: 3px;
+}
+.today-chip b { color: var(--ink-2); font-weight: 600; }
+
+/* 탭 */
+.tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 4px;
+  margin-bottom: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.tabs button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 7px 0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.25s ease, transform 0.12s ease;
+}
+
+.tabs button[aria-selected="true"] {
+  color: var(--gold);
+  background: linear-gradient(150deg, rgba(255, 212, 138, 0.20), rgba(255, 212, 138, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(255, 212, 138, 0.30), 0 6px 16px -12px rgba(255, 200, 120, 0.7);
+  text-shadow: 0 0 14px rgba(255, 212, 138, 0.35);
+}
+.tabs button:active { transform: scale(0.98); }
+
+/* 카드 */
+.card {
+  position: relative;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.028));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  padding: 14px 12px;
+  margin-bottom: 12px;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0) 38%);
+  opacity: 0.6;
+}
+
+/* ---------- 달력 ---------- */
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 2px 2px 10px;
+}
+
+.icon-btn {
+  appearance: none;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--glass);
+  color: var(--ink-2);
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.12s ease, border-color 0.18s ease;
+}
+.icon-btn:hover { background: var(--glass-2); border-color: var(--line-2); }
+.icon-btn:active { transform: scale(0.94); }
+
+.ym-btn {
+  appearance: none;
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 2px 4px;
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.ym-btn:active { background: rgba(255, 255, 255, 0.05); }
+
+.ym {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.ym .caret { font-size: 9px; color: var(--ink-3); transform: translateY(1px); }
+.ym-sub { font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.01em; }
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  padding: 4px 2px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+.weekdays .sun { color: #ff9fae; }
+.weekdays .sat { color: #93bdfd; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  padding: 0 2px;
+}
+
+.cell {
+  appearance: none;
+  position: relative;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  border-radius: 14px;
+  height: 51px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.16s ease, transform 0.12s ease, border-color 0.16s ease;
+  overflow: hidden;
+}
+.cell:active { transform: scale(0.95); }
+.cell:hover { background: rgba(255, 255, 255, 0.05); }
+
+.cell .sd {
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.cell .ld {
+  font-size: 9px;
+  line-height: 1.1;
+  color: var(--ink-3);
+  letter-spacing: -0.02em;
+  max-width: 100%;
+  padding: 0 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cell .ev {
+  font-size: 8px;
+  line-height: 1.15;
+  font-weight: 600;
+  max-width: 100%;
+  padding: 0 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.03em;
+}
+
+.cell.sun .sd { color: #ff9fae; }
+.cell.sat .sd { color: #93bdfd; }
+.cell.hol .sd { color: #ff8d9c; font-weight: 700; }
+.cell.hol .ev { color: #ff8d9c; }
+.cell .ev.term { color: var(--mint); }
+.cell .ev.fest { color: var(--gold); }
+.cell .ev.sub { color: #ffb0bb; }
+
+.cell.empty { cursor: default; }
+.cell.empty:hover { background: transparent; }
+.cell.empty:active { transform: none; }
+
+.cell.leap .ld { color: rgba(198, 184, 255, 0.85); }
+.cell.other .sd { color: rgba(238, 242, 255, 0.22); }
+.cell.other .ld { opacity: 0.35; }
+
+.cell.today {
+  border-color: rgba(255, 212, 138, 0.55);
+  background: radial-gradient(circle at 50% 40%, rgba(255, 212, 138, 0.16), rgba(255, 212, 138, 0.02) 70%);
+}
+.cell.today .sd { color: var(--gold); font-weight: 700; }
+.cell.today::after {
+  content: "";
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 8px rgba(255, 212, 138, 0.9);
+}
+
+.cell.sel {
+  border-color: rgba(255, 226, 176, 0.75);
+  background: linear-gradient(160deg, rgba(255, 212, 138, 0.30), rgba(147, 169, 255, 0.26));
+  box-shadow: 0 8px 22px -12px rgba(255, 212, 138, 0.8);
+}
+.cell.sel .sd { color: #fff8e8; }
+.cell.sel .ld { color: rgba(255, 248, 232, 0.8); }
+.cell.sel .ev { color: #fff3d6; }
+.cell.sel.today::after { background: #fff6e2; }
+
+.cal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 4px 2px;
+}
+
+.today-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 212, 138, 0.35);
+  background: rgba(255, 212, 138, 0.10);
+  color: var(--gold);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.12s ease;
+  min-height: 34px;
+}
+.today-btn:hover { background: rgba(255, 212, 138, 0.18); }
+.today-btn:active { transform: scale(0.96); }
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+.legend i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 3px;
+  vertical-align: 1px;
+}
+.legend .l-hol i { background: #ff8d9c; }
+.legend .l-term i { background: var(--mint); }
+.legend .l-fest i { background: var(--gold); }
+
+/* ---------- 상세 카드 ---------- */
+.detail { margin-bottom: 12px; }
+
+.d-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 4px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.d-date {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.d-date .wd { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.d-date .wd.sun { color: #ff9fae; }
+.d-date .wd.sat { color: #93bdfd; }
+.d-sub { font-size: 11.5px; color: var(--ink-3); margin-top: 3px; }
+.d-sub b { color: var(--gold); font-weight: 600; }
+
+.moon-wrap { flex: none; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.moon-wrap svg { display: block; filter: drop-shadow(0 0 10px rgba(255, 226, 176, 0.45)); }
+.moon-name { font-size: 9.5px; color: var(--ink-3); letter-spacing: 0.02em; }
+
+.d-rows { display: flex; flex-direction: column; padding: 4px 2px 0; }
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  font-size: 13px;
+}
+.row:last-child { border-bottom: 0; }
+.row .k { flex: none; width: 44px; color: var(--ink-3); font-size: 11.5px; letter-spacing: 0.02em; }
+.row .v { color: var(--ink); font-weight: 500; }
+.row .v.dim { color: var(--ink-2); font-weight: 400; }
+.row .v .hanja { color: var(--ink-3); font-size: 11px; margin-left: 4px; }
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  margin-right: 5px;
+  line-height: 1.5;
+}
+.tag.hol { background: rgba(255, 147, 163, 0.14); color: #ffa8b4; border: 1px solid rgba(255, 147, 163, 0.3); }
+.tag.sub { background: rgba(255, 176, 187, 0.10); color: #ffb9c3; border: 1px solid rgba(255, 176, 187, 0.24); }
+.tag.term { background: rgba(147, 227, 207, 0.12); color: var(--mint); border: 1px solid rgba(147, 227, 207, 0.28); }
+.tag.fest { background: rgba(255, 212, 138, 0.12); color: var(--gold); border: 1px solid rgba(255, 212, 138, 0.28); }
+
+/* ---------- 변환기 ---------- */
+.seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  margin-bottom: 12px;
+}
+.seg button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 9px 0;
+  border-radius: 11px;
+  cursor: pointer;
+  min-height: 38px;
+  transition: color 0.2s, background 0.25s;
+}
+.seg button[aria-pressed="true"] {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.11);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 1fr;
+  gap: 7px;
+  margin-bottom: 9px;
+}
+
+.field {
+  position: relative;
+  border: 1px solid var(--line);
+  background: rgba(9, 14, 30, 0.5);
+  border-radius: 13px;
+  padding: 7px 9px 6px;
+  min-width: 0;
+}
+.field .lab {
+  display: block;
+  font-size: 9.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  margin-bottom: 1px;
+}
+.field select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 2px 16px 2px 0;
+  min-height: 24px;
+  cursor: pointer;
+  outline: none;
+}
+.field select:disabled { color: var(--ink-3); }
+.field .chev {
+  position: absolute;
+  right: 8px;
+  bottom: 10px;
+  font-size: 9px;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.field option { background: #101830; color: #eef2ff; }
+
+.leap-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 2px 10px;
+}
+.leap-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-2);
+  cursor: pointer;
+  padding: 4px 0;
+  min-height: 32px;
+}
+.leap-row input {
+  appearance: none;
+  width: 17px;
+  height: 17px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  position: relative;
+  flex: none;
+}
+.leap-row input:checked { background: linear-gradient(140deg, #ffe6b4, var(--gold)); border-color: transparent; }
+.leap-row input:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1.5px;
+  width: 5px;
+  height: 9px;
+  border: solid #2a1d05;
+  border-width: 0 2px 2px 0;
+  transform: rotate(42deg);
+}
+.leap-row input:disabled { opacity: 0.3; cursor: not-allowed; }
+.leap-row .note { font-size: 10.5px; color: var(--ink-3); }
+
+.result {
+  border-radius: 18px;
+  border: 1px solid rgba(255, 212, 138, 0.22);
+  background: linear-gradient(160deg, rgba(255, 212, 138, 0.10), rgba(147, 169, 255, 0.07));
+  padding: 14px 14px 13px;
+  margin: 2px 0 4px;
+}
+
+.result .r-label { font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.06em; margin-bottom: 5px; }
+.result .r-main {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+.result .r-main .small { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.result .r-meta { margin-top: 6px; font-size: 11.5px; color: var(--ink-3); }
+.result .r-meta b { color: var(--ink-2); font-weight: 600; }
+.result .r-warn { color: #ffb0bb; font-size: 12.5px; font-weight: 600; }
+
+.list-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 4px 6px;
+}
+.list-head h3 { margin: 0; font-size: 12.5px; font-weight: 700; color: var(--ink-2); letter-spacing: -0.01em; }
+.list-head span { font-size: 10.5px; color: var(--ink-3); }
+
+.ylist { display: flex; flex-direction: column; gap: 1px; }
+.yrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  font-size: 13px;
+}
+.yrow:last-child { border-bottom: 0; }
+.yrow .y { color: var(--ink-3); font-size: 11.5px; width: 46px; flex: none; }
+.yrow .s { font-weight: 600; letter-spacing: -0.01em; }
+.yrow .s .wd { font-size: 11px; color: var(--ink-3); font-weight: 500; margin-left: 3px; }
+.yrow .s .wd.sun { color: #ff9fae; }
+.yrow .s .wd.sat { color: #93bdfd; }
+.yrow .d { font-size: 10.5px; color: var(--ink-3); flex: none; }
+.yrow .d.hit { color: var(--gold); font-weight: 700; }
+.yrow.miss .s { color: var(--ink-3); font-weight: 500; }
+
+.hint-line {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  line-height: 1.6;
+  padding: 10px 4px 2px;
+}
+
+footer {
+  text-align: center;
+  font-size: 10px;
+  color: rgba(123, 134, 168, 0.75);
+  line-height: 1.7;
+  padding: 14px 8px 4px;
+}
+
+/* ---------- 연·월 선택 시트 ---------- */
+.sheet-back {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(3, 5, 12, 0.6);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+.sheet-back.open { opacity: 1; }
+
+.sheet {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  z-index: 41;
+  width: min(480px, 100%);
+  transform: translate(-50%, 105%);
+  visibility: hidden;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s 0.3s;
+  background: linear-gradient(180deg, #161f3d 0%, #0d1428 100%);
+  border: 1px solid var(--line-2);
+  border-bottom: 0;
+  border-radius: 26px 26px 0 0;
+  padding: 10px 18px calc(20px + env(safe-area-inset-bottom));
+  box-shadow: 0 -20px 50px -20px rgba(0, 0, 0, 0.9);
+}
+.sheet.open { transform: translate(-50%, 0); visibility: visible; transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s 0s; }
+.sheet .grab {
+  width: 38px;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 auto 12px;
+}
+.sheet h2 { margin: 0 0 10px; font-size: 14px; font-weight: 700; }
+.year-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.year-pick button {
+  appearance: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--glass);
+  color: var(--ink-2);
+  font-size: 16px;
+  cursor: pointer;
+}
+.year-pick .yr { font-size: 17px; font-weight: 700; }
+.month-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.month-grid button {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--glass);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 11px 0;
+  border-radius: 13px;
+  cursor: pointer;
+  min-height: 42px;
+}
+.month-grid button[aria-pressed="true"] {
+  color: #221703;
+  background: linear-gradient(140deg, #ffe6b4, var(--gold));
+  border-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+
+/* 넓은 화면 */
+@media (min-width: 620px) {
+  .app { max-width: 520px; padding-top: 34px; }
+  .cell { height: 58px; }
+  .cell .sd { font-size: 15.5px; }
+}
+
+@media (min-width: 900px) {
+  .sky::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(46% 40% at 50% 6%, rgba(120, 146, 224, 0.16) 0%, rgba(120, 146, 224, 0) 70%),
+      radial-gradient(38% 34% at 14% 62%, rgba(96, 118, 200, 0.10) 0%, rgba(96, 118, 200, 0) 70%),
+      radial-gradient(40% 32% at 88% 74%, rgba(255, 212, 138, 0.055) 0%, rgba(255, 212, 138, 0) 70%);
+    pointer-events: none;
+  }
+  .moon-glow {
+    width: 520px;
+    height: 520px;
+    top: -170px;
+    right: -110px;
+  }
+  .app::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 40px;
+    width: 640px;
+    height: 900px;
+    margin-left: -320px;
+    border-radius: 48px;
+    background: radial-gradient(60% 40% at 50% 0%, rgba(255, 212, 138, 0.05), rgba(0, 0, 0, 0) 70%);
+    pointer-events: none;
+    z-index: -1;
+  }
+}
+
+@media (max-width: 359px) {
+  .cell { height: 48px; }
+  .cell .ev { font-size: 7.5px; }
+  .d-date { font-size: 19px; }
+  .app { padding-left: 12px; padding-right: 12px; }
+}
+
+</style>
+</head>
+<body>
+<div class="sky"><div class="moon-glow"></div><div class="stars"></div></div>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <span class="mark" id="brandMark" aria-hidden="true"></span>
+      <div>음력 달력<small>LUNAR CALENDAR</small></div>
+    </div>
+    <div class="today-chip" id="todayChip"></div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="화면 선택">
+    <button type="button" data-view="cal" role="tab" aria-selected="true">달력</button>
+    <button type="button" data-view="conv" role="tab" aria-selected="false">변환기</button>
+  </nav>
+
+  <main>
+    <section id="view-cal">
+      <div class="card cal" id="calCard">
+        <div class="cal-head">
+          <button type="button" class="icon-btn" id="prev" aria-label="이전 달">‹</button>
+          <button type="button" class="ym-btn" id="ymBtn" aria-label="연도와 월 선택">
+            <span class="ym"><span id="ymLabel">2026년 11월</span><span class="caret" aria-hidden="true">▾</span></span>
+            <span class="ym-sub" id="ymSub"></span>
+          </button>
+          <button type="button" class="icon-btn" id="next" aria-label="다음 달">›</button>
+        </div>
+        <div class="weekdays" aria-hidden="true">
+          <span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="sat">토</span>
+        </div>
+        <div class="grid" id="grid"></div>
+        <div class="cal-foot">
+          <button type="button" class="today-btn" id="todayBtn">오늘</button>
+          <div class="legend">
+            <span class="l-hol"><i></i>공휴일</span>
+            <span class="l-term"><i></i>절기</span>
+            <span class="l-fest"><i></i>명절</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card detail" id="detail"></div>
+    </section>
+
+    <section id="view-conv" hidden>
+      <div class="card">
+        <div class="seg" id="convSeg">
+          <button type="button" data-mode="s2l" aria-pressed="true">양력 → 음력</button>
+          <button type="button" data-mode="l2s" aria-pressed="false">음력 → 양력</button>
+        </div>
+
+        <div class="field-row">
+          <label class="field">
+            <span class="lab" id="cYearLabel">양력 연</span>
+            <select id="cYear" aria-label="연도"></select>
+            <span class="chev" aria-hidden="true">▾</span>
+          </label>
+          <label class="field">
+            <span class="lab" id="cMonthLabel">양력 월</span>
+            <select id="cMonth" aria-label="월"></select>
+            <span class="chev" aria-hidden="true">▾</span>
+          </label>
+          <label class="field">
+            <span class="lab" id="cDayLabel">양력 일</span>
+            <select id="cDay" aria-label="일"></select>
+            <span class="chev" aria-hidden="true">▾</span>
+          </label>
+        </div>
+
+        <div class="leap-row" id="leapRow">
+          <label><input type="checkbox" id="leapChk"> 윤달</label>
+          <span class="note" id="leapNote"></span>
+        </div>
+
+        <div class="result" id="convResult"></div>
+      </div>
+
+      <div class="card">
+        <div class="list-head">
+          <h3 id="ylistTitle">매년 보기</h3>
+          <span id="ylistSub">음력 기준</span>
+        </div>
+        <div class="ylist" id="ylist"></div>
+        <p class="hint-line">음력 생일처럼 매년 돌아오는 날의 양력 날짜를 확인할 수 있어요. 윤달은 그 해에 윤달이 있을 때만 나타나요.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    음력·24절기: 한국천문연구원 기준(KST) · 공휴일: 2026년 11월 기준 법령 반영<br>
+    간지·띠는 절기(입춘·절입) 기준 · 지원 범위 1900. 1. 1 – 2050. 12. 31
+  </footer>
+</div>
+
+<div class="sheet-back" id="sheetBack" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="연도와 월 선택">
+  <div class="grab" aria-hidden="true"></div>
+  <h2>연도 · 월</h2>
+  <div class="year-pick">
+    <button type="button" id="sheetPrevY" aria-label="이전 해">‹</button>
+    <span class="yr" id="sheetYear">2026년</span>
+    <button type="button" id="sheetNextY" aria-label="다음 해">›</button>
+  </div>
+  <div class="month-grid" id="monthGrid"></div>
+</div>
+
+<script>
+/* data.js — 음력 달력 데이터 (자동 생성) */
+/* 음력: 한국천문연구원(KASI) 음양력 기준 · 24절기: KASI 24기 입기시각(1920–2100) + 1900–1919 정밀계산(KST) */
+var LUNAR_Y0 = 1899, TERM_Y0 = 1900, HOLI_Y0 = 1948;
+var TERM_NAMES = ["소한", "대한", "입춘", "우수", "경칩", "춘분", "청명", "곡우", "입하", "소만", "망종", "하지", "소서", "대서", "입추", "처서", "백로", "추분", "한로", "상강", "입동", "소설", "대설", "동지"];
+var TERM_HANJA = ["小寒", "大寒", "立春", "雨水", "驚蟄", "春分", "淸明", "穀雨", "立夏", "小滿", "芒種", "夏至", "小暑", "大暑", "立秋", "處暑", "白露", "秋分", "寒露", "霜降", "立冬", "小雪", "大雪", "冬至"];
+var TERM_MONTH = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12];
+/* 각 해: [설날 epochDay, 윤달월(0=없음), 달 길이 비트(1=30일), 달 수] */
+var LUNAR = [
+  [-325,0,2773,12],
+  [30,8,5842,13],
+  [414,0,1874,12],
+  [768,0,3749,12],
+  [1123,5,5706,13],
+  [1506,0,1611,12],
+  [1860,0,2715,12],
+  [2215,4,5462,13],
+  [2599,0,1386,12],
+  [2953,0,2905,12],
+  [3308,2,5970,13],
+  [3692,0,1874,12],
+  [4046,6,6949,13],
+  [4430,0,2853,12],
+  [4784,0,2635,12],
+  [5138,5,4763,13],
+  [5522,0,2733,12],
+  [5877,0,1386,12],
+  [6231,2,2921,13],
+  [6615,0,2985,12],
+  [6970,7,6994,13],
+  [7354,0,3474,12],
+  [7708,0,3365,12],
+  [8062,5,6733,13],
+  [8446,0,2390,12],
+  [8800,0,693,12],
+  [9154,4,5549,13],
+  [9539,0,1748,12],
+  [9893,0,3497,12],
+  [10248,2,7570,13],
+  [10632,0,3730,12],
+  [10986,6,3366,13],
+  [11369,0,1319,12],
+  [11723,0,2647,12],
+  [12078,5,4790,13],
+  [12462,0,2778,12],
+  [12817,0,1748,12],
+  [13171,3,3753,13],
+  [13555,0,1865,12],
+  [13909,7,5779,13],
+  [14293,0,2707,12],
+  [14647,0,1323,12],
+  [15001,6,2651,13],
+  [15385,0,2413,12],
+  [15740,0,2922,12],
+  [16095,4,6996,13],
+  [16479,0,2980,12],
+  [16833,0,2889,12],
+  [17187,2,6803,13],
+  [17571,0,2709,12],
+  [17925,7,5419,13],
+  [18309,0,1325,12],
+  [18663,0,2733,12],
+  [19018,5,5482,13],
+  [19402,0,3506,12],
+  [19757,0,3492,12],
+  [20111,3,7497,13],
+  [20495,0,3402,12],
+  [20849,8,6805,13],
+  [21233,0,2710,12],
+  [21587,0,1366,12],
+  [21941,6,2741,13],
+  [22325,0,2773,12],
+  [22680,0,1746,12],
+  [23034,4,3749,13],
+  [23418,0,3749,12],
+  [23773,0,3658,12],
+  [24127,3,3222,13],
+  [24510,0,2715,12],
+  [24865,7,5462,13],
+  [25249,0,1386,12],
+  [25603,0,2905,12],
+  [25958,5,5970,13],
+  [26342,0,1874,12],
+  [26696,0,1829,12],
+  [27050,4,5707,13],
+  [27434,0,2635,12],
+  [27788,8,4779,13],
+  [28172,0,685,12],
+  [28526,0,1387,12],
+  [28881,6,2921,13],
+  [29265,0,3497,12],
+  [29620,0,3474,12],
+  [29974,4,6949,13],
+  [30358,0,3365,12],
+  [30712,10,6733,13],
+  [31096,0,2646,12],
+  [31450,0,694,12],
+  [31804,6,5549,13],
+  [32189,0,1748,12],
+  [32543,0,3497,12],
+  [32898,5,7570,13],
+  [33282,0,3730,12],
+  [33636,0,3366,12],
+  [33990,3,2646,13],
+  [34373,0,2647,12],
+  [34728,8,4790,13],
+  [35112,0,2906,12],
+  [35467,0,1748,12],
+  [35821,5,3785,13],
+  [36205,0,1865,12],
+  [36559,0,1683,12],
+  [36913,4,5415,13],
+  [37297,0,1323,12],
+  [37651,0,2651,12],
+  [38006,2,5466,13],
+  [38390,0,874,12],
+  [38744,7,6997,13],
+  [39129,0,2980,12],
+  [39483,0,2889,12],
+  [39837,5,6803,13],
+  [40221,0,2709,12],
+  [40575,0,1325,12],
+  [40929,3,2653,13],
+  [41313,0,2733,12],
+  [41668,9,5546,13],
+  [42052,0,1490,12],
+  [42406,0,3493,12],
+  [42761,5,7498,13],
+  [43145,0,3402,12],
+  [43499,0,2709,12],
+  [43853,4,5421,13],
+  [44237,0,1366,12],
+  [44591,0,2741,12],
+  [44946,2,5546,13],
+  [45330,0,1746,12],
+  [45684,6,3749,13],
+  [46068,0,3749,12],
+  [46423,0,3658,12],
+  [46777,5,3222,13],
+  [47160,0,3227,12],
+  [47515,0,1370,12],
+  [47869,3,2773,13],
+  [48253,0,2921,12],
+  [48608,11,5970,13],
+  [48992,0,1874,12],
+  [49346,0,2853,12],
+  [49700,6,5707,13],
+  [50084,0,2635,12],
+  [50438,0,1195,12],
+  [50792,5,1371,13],
+  [51176,0,1389,12],
+  [51531,0,2921,12],
+  [51886,2,6994,13],
+  [52270,0,3474,12],
+  [52624,7,7461,13],
+  [53008,0,3365,12],
+  [53362,0,2637,12],
+  [53716,5,5293,13],
+  [54100,0,694,12],
+  [54454,0,1461,12],
+  [54809,3,3497,12],
+];
+/* 24절기: 연도별 24기 × (일, 시, 분) 3바이트를 이어붙인 base64 */
+var TERM_DATA = "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";
+var HOLI_NAMES = [
+  [0,"신정"],
+  [0,"삼일절"],
+  [0,"국회의원 선거일"],
+  [0,"제헌절"],
+  [0,"대통령 선거일"],
+  [0,"광복절"],
+  [0,"추석"],
+  [0,"개천절"],
+  [0,"한글날"],
+  [0,"국제연합의 대한민국 정부 승인 경축 국민대회"],
+  [0,"성탄절"],
+  [0,"식목일"],
+  [0,"5.10 제헌의회선거 1주년 기념일"],
+  [0,"백범 김구 선생 국민장 영결식"],
+  [0,"전몰군인 합동위령제"],
+  [0,"국제연합일"],
+  [0,"부통령 선거일"],
+  [0,"지방선거일"],
+  [0,"현충일"],
+  [0,"이승만 대통령 탄신일"],
+  [1,"식목일"],
+  [0,"사방의 날"],
+  [1,"제헌절"],
+  [0,"신정부 경축의 날"],
+  [1,"한글날"],
+  [1,"성탄절"],
+  [0,"4.19 혁명 기념일"],
+  [0,"5.16 군사혁명 기념일"],
+  [0,"대통령 취임식"],
+  [0,"국군의 날"],
+  [0,"임시공휴일"],
+  [0,"아폴로 11호 달 착륙 기념"],
+  [0,"삼선 헌법 개정 국민투표일"],
+  [0,"유신헌법 국민투표일"],
+  [0,"통일주체국민회의 선거일"],
+  [0,"대통령 영부인 육영수 여사 국민장 영결식"],
+  [0,"어린이날"],
+  [0,"석가탄신일"],
+  [0,"박정희 대통령 국장 영결식"],
+  [0,"제5공화국 헌법 개정 국민투표일"],
+  [0,"선거를 위한 선거인단 선일"],
+  [0,"민속의 날"],
+  [0,"추석 연휴"],
+  [0,"제6공화국 헌법 개정 국민투표일"],
+  [0,"1988 서울 올림픽 개막식"],
+  [0,"설날 연휴"],
+  [0,"설날"],
+  [1,"국군의 날"],
+  [0,"2002년 한일 월드컵 대표팀 4강 진출"],
+  [1,"추석"],
+  [1,"설날"],
+  [0,"부처님오신날"],
+  [1,"어린이날"],
+  [1,"광복절"],
+  [1,"개천절"],
+  [1,"부처님오신날"],
+  [1,"삼일절"],
+  [0,"노동절"],
+  [1,"노동절"],
+];
+/* 연도: [[월, 일, 이름번호], ...] */
+var HOLIDAYS = {
+  1948:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[5,10,2],[7,17,3],[7,20,4],[8,15,5],[9,17,6],[10,3,7],[10,9,8],[12,15,9],[12,25,10]],
+  1949:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[5,10,12],[7,5,13],[7,17,3],[8,15,5],[10,3,7],[10,6,6],[10,9,8],[12,25,10]],
+  1950:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[5,30,2],[6,21,14],[7,17,3],[8,15,5],[9,26,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1951:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[5,16,16],[7,17,3],[8,15,5],[9,15,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1952:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[4,25,17],[5,10,17],[7,17,3],[8,5,4],[8,15,5],[10,3,7],[10,3,6],[10,9,8],[10,24,15],[12,25,10]],
+  1953:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[7,17,3],[8,15,5],[9,22,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1954:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[5,20,2],[7,17,3],[8,15,5],[9,11,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1955:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[7,17,3],[8,15,5],[9,30,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1956:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[5,15,4],[6,6,18],[7,17,3],[8,8,17],[8,13,17],[8,15,5],[9,19,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1957:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[3,26,19],[4,5,11],[6,6,18],[7,17,3],[8,15,5],[9,8,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1958:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[3,26,19],[4,5,11],[5,2,2],[6,6,18],[7,17,3],[8,15,5],[9,27,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1959:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[3,26,19],[4,5,11],[4,6,20],[6,6,18],[7,17,3],[8,15,5],[9,17,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1960:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[3,15,4],[3,16,21],[3,26,19],[6,6,18],[7,17,3],[7,18,22],[7,29,2],[8,12,4],[8,15,5],[10,1,23],[10,3,7],[10,5,6],[10,9,8],[10,10,24],[10,24,15],[12,12,17],[12,19,17],[12,25,10],[12,26,25],[12,26,17],[12,29,17]],
+  1961:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[4,19,26],[6,6,18],[7,17,3],[8,15,5],[9,24,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1962:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[4,19,26],[5,16,27],[6,6,18],[7,17,3],[8,15,5],[9,13,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1963:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[4,19,26],[5,16,27],[6,6,18],[7,17,3],[8,15,5],[10,2,6],[10,3,7],[10,9,8],[10,15,4],[10,24,15],[11,26,2],[12,17,28],[12,25,10]],
+  1964:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[6,6,18],[7,17,3],[8,15,5],[9,20,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1965:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[6,6,18],[7,17,3],[8,15,5],[9,10,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1966:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[6,6,18],[7,17,3],[8,15,5],[9,29,6],[10,1,29],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1967:[[1,1,0],[1,2,0],[1,3,0],[1,4,30],[3,1,1],[4,5,11],[5,3,4],[6,6,18],[6,8,2],[7,1,28],[7,17,3],[8,15,5],[9,18,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1968:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[6,6,18],[7,17,3],[8,15,5],[10,3,7],[10,6,6],[10,9,8],[10,24,15],[12,25,10]],
+  1969:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[6,6,18],[7,17,3],[7,21,31],[8,15,5],[9,26,6],[10,3,7],[10,9,8],[10,17,32],[10,24,15],[12,25,10]],
+  1970:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[6,6,18],[7,17,3],[8,15,5],[9,15,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1971:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[4,27,4],[5,25,2],[6,6,18],[7,1,28],[7,17,3],[8,15,5],[10,3,7],[10,3,6],[10,9,8],[10,24,15],[12,25,10]],
+  1972:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[6,6,18],[7,17,3],[8,15,5],[9,22,6],[10,3,7],[10,9,8],[10,24,15],[11,21,33],[12,15,34],[12,23,4],[12,25,10],[12,27,28]],
+  1973:[[1,1,0],[1,2,0],[1,3,0],[2,27,2],[3,1,1],[4,5,11],[6,6,18],[7,17,3],[8,15,5],[9,11,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1974:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[6,6,18],[7,17,3],[8,15,5],[8,19,35],[9,30,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1975:[[1,1,0],[1,2,0],[1,3,0],[2,12,33],[3,1,1],[4,5,11],[5,5,36],[5,18,37],[6,6,18],[7,17,3],[8,15,5],[9,20,6],[10,3,7],[10,9,8],[10,24,15],[12,25,10]],
+  1976:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[5,5,36],[5,6,37],[6,6,18],[7,17,3],[8,15,5],[9,8,6],[10,1,29],[10,3,7],[10,9,8],[12,25,10]],
+  1977:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[5,5,36],[5,25,37],[6,6,18],[7,17,3],[8,15,5],[9,27,6],[10,1,29],[10,3,7],[10,9,8],[12,25,10]],
+  1978:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[5,5,36],[5,14,37],[5,18,34],[6,6,18],[7,6,4],[7,17,3],[8,15,5],[9,17,6],[10,1,29],[10,3,7],[10,9,8],[12,12,2],[12,25,10],[12,27,28]],
+  1979:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[5,3,37],[5,5,36],[6,6,18],[7,17,3],[8,15,5],[10,1,29],[10,3,7],[10,5,6],[10,9,8],[11,3,38],[12,6,4],[12,21,28],[12,25,10]],
+  1980:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[5,5,36],[5,21,37],[6,6,18],[7,17,3],[8,15,5],[8,27,4],[9,1,28],[9,23,6],[10,1,29],[10,3,7],[10,9,8],[10,22,39],[12,25,10]],
+  1981:[[1,1,0],[1,2,0],[1,3,0],[2,11,40],[2,25,4],[3,1,1],[3,3,28],[3,25,2],[4,5,11],[5,5,36],[5,11,37],[6,6,18],[7,17,3],[8,15,5],[9,12,6],[10,1,29],[10,3,7],[10,9,8],[12,25,10]],
+  1982:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[5,1,37],[5,5,36],[6,6,18],[7,17,3],[8,15,5],[10,1,29],[10,1,6],[10,2,30],[10,3,7],[10,9,8],[12,25,10]],
+  1983:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[5,5,36],[5,20,37],[6,6,18],[7,17,3],[8,15,5],[9,21,6],[10,1,29],[10,3,7],[10,9,8],[12,25,10]],
+  1984:[[1,1,0],[1,2,0],[1,3,0],[3,1,1],[4,5,11],[5,5,36],[5,8,37],[6,6,18],[7,17,3],[8,15,5],[9,10,6],[10,1,29],[10,3,7],[10,9,8],[12,25,10]],
+  1985:[[1,1,0],[1,2,0],[1,3,0],[2,12,2],[2,20,41],[3,1,1],[4,5,11],[5,5,36],[5,27,37],[6,6,18],[7,17,3],[8,15,5],[9,29,6],[10,1,29],[10,3,7],[10,9,8],[12,25,10]],
+  1986:[[1,1,0],[1,2,0],[1,3,0],[2,9,41],[3,1,1],[4,5,11],[5,5,36],[5,16,37],[6,6,18],[7,17,3],[8,15,5],[9,18,6],[9,19,42],[10,1,29],[10,3,7],[10,9,8],[12,25,10]],
+  1987:[[1,1,0],[1,2,0],[1,3,0],[1,29,41],[3,1,1],[4,5,11],[5,5,37],[5,5,36],[6,6,18],[7,17,3],[8,15,5],[10,1,29],[10,3,7],[10,7,6],[10,8,42],[10,9,8],[10,27,43],[12,16,4],[12,25,10]],
+  1988:[[1,1,0],[1,2,0],[1,3,0],[2,18,41],[2,25,28],[3,1,1],[4,5,11],[4,26,2],[5,5,36],[5,23,37],[6,6,18],[7,17,3],[8,15,5],[9,17,44],[9,25,6],[9,26,42],[10,1,29],[10,3,7],[10,9,8],[12,25,10]],
+  1989:[[1,1,0],[1,2,0],[1,3,0],[2,5,45],[2,6,46],[2,7,45],[3,1,1],[4,5,11],[5,5,36],[5,12,37],[6,6,18],[7,17,3],[8,15,5],[9,13,42],[9,14,6],[9,15,42],[10,1,29],[10,2,47],[10,3,7],[10,9,8],[12,25,10]],
+  1990:[[1,1,0],[1,2,0],[1,26,45],[1,27,46],[1,28,45],[3,1,1],[4,5,11],[5,2,37],[5,5,36],[6,6,18],[7,17,3],[8,15,5],[10,1,29],[10,2,42],[10,3,7],[10,3,6],[10,4,42],[10,9,8],[12,25,10]],
+  1991:[[1,1,0],[1,2,0],[2,14,45],[2,15,46],[2,16,45],[3,1,1],[3,26,17],[4,5,11],[5,5,36],[5,21,37],[6,6,18],[6,20,17],[7,17,3],[8,15,5],[9,21,42],[9,22,6],[9,23,42],[10,3,7],[12,25,10]],
+  1992:[[1,1,0],[1,2,0],[2,3,45],[2,4,46],[2,5,45],[3,1,1],[3,24,2],[4,5,11],[5,5,36],[5,10,37],[6,6,18],[7,17,3],[8,15,5],[9,10,42],[9,11,6],[9,12,42],[10,3,7],[12,18,4],[12,25,10]],
+  1993:[[1,1,0],[1,2,0],[1,22,45],[1,23,46],[1,24,45],[3,1,1],[4,5,11],[5,5,36],[5,28,37],[6,6,18],[7,17,3],[8,15,5],[9,29,42],[9,30,6],[10,1,42],[10,3,7],[12,25,10]],
+  1994:[[1,1,0],[1,2,0],[2,9,45],[2,10,46],[2,11,45],[3,1,1],[4,5,11],[5,5,36],[5,18,37],[6,6,18],[7,17,3],[8,15,5],[9,19,42],[9,20,6],[9,21,42],[10,3,7],[12,25,10]],
+  1995:[[1,1,0],[1,2,0],[1,30,45],[1,31,46],[2,1,45],[3,1,1],[4,5,11],[5,5,36],[5,7,37],[6,6,18],[6,27,17],[7,17,3],[8,15,5],[9,8,42],[9,9,6],[9,10,42],[10,3,7],[12,25,10]],
+  1996:[[1,1,0],[1,2,0],[2,18,45],[2,19,46],[2,20,45],[3,1,1],[4,5,11],[4,11,2],[5,5,36],[5,24,37],[6,6,18],[7,17,3],[8,15,5],[9,26,42],[9,27,6],[9,28,42],[10,3,7],[12,25,10]],
+  1997:[[1,1,0],[1,2,0],[2,7,45],[2,8,46],[2,9,45],[3,1,1],[4,5,11],[5,5,36],[5,14,37],[6,6,18],[7,17,3],[8,15,5],[9,15,42],[9,16,6],[9,17,42],[10,3,7],[12,18,4],[12,25,10]],
+  1998:[[1,1,0],[1,2,0],[1,27,45],[1,28,46],[1,29,45],[3,1,1],[4,5,11],[5,3,37],[5,5,36],[6,4,17],[6,6,18],[7,17,3],[8,15,5],[10,3,7],[10,4,42],[10,5,6],[10,6,42],[12,25,10]],
+  1999:[[1,1,0],[2,15,45],[2,16,46],[2,17,45],[3,1,1],[4,5,11],[5,5,36],[5,22,37],[6,6,18],[7,17,3],[8,15,5],[9,23,42],[9,24,6],[9,25,42],[10,3,7],[12,25,10]],
+  2000:[[1,1,0],[2,4,45],[2,5,46],[2,6,45],[3,1,1],[4,5,11],[4,13,2],[5,5,36],[5,11,37],[6,6,18],[7,17,3],[8,15,5],[9,11,42],[9,12,6],[9,13,42],[10,3,7],[12,25,10]],
+  2001:[[1,1,0],[1,23,45],[1,24,46],[1,25,45],[3,1,1],[4,5,11],[5,1,37],[5,5,36],[6,6,18],[7,17,3],[8,15,5],[9,30,42],[10,1,6],[10,2,42],[10,3,7],[12,25,10]],
+  2002:[[1,1,0],[2,11,45],[2,12,46],[2,13,45],[3,1,1],[4,5,11],[5,5,36],[5,19,37],[6,6,18],[6,13,17],[7,1,48],[7,17,3],[8,15,5],[9,20,42],[9,21,6],[9,22,42],[10,3,7],[12,19,4],[12,25,10]],
+  2003:[[1,1,0],[1,31,45],[2,1,46],[2,2,45],[3,1,1],[4,5,11],[5,5,36],[5,8,37],[6,6,18],[7,17,3],[8,15,5],[9,10,42],[9,11,6],[9,12,42],[10,3,7],[12,25,10]],
+  2004:[[1,1,0],[1,21,45],[1,22,46],[1,23,45],[3,1,1],[4,5,11],[4,15,2],[5,5,36],[5,26,37],[6,6,18],[7,17,3],[8,15,5],[9,27,42],[9,28,6],[9,29,42],[10,3,7],[12,25,10]],
+  2005:[[1,1,0],[2,8,45],[2,9,46],[2,10,45],[3,1,1],[4,5,11],[5,5,36],[5,15,37],[6,6,18],[7,17,3],[8,15,5],[9,17,42],[9,18,6],[9,19,42],[10,3,7],[12,25,10]],
+  2006:[[1,1,0],[1,28,45],[1,29,46],[1,30,45],[3,1,1],[5,5,37],[5,5,36],[5,31,17],[6,6,18],[7,17,3],[8,15,5],[10,3,7],[10,5,42],[10,6,6],[10,7,42],[12,25,10]],
+  2007:[[1,1,0],[2,17,45],[2,18,46],[2,19,45],[3,1,1],[5,5,36],[5,24,37],[6,6,18],[7,17,3],[8,15,5],[9,24,42],[9,25,6],[9,26,42],[10,3,7],[12,19,4],[12,25,10]],
+  2008:[[1,1,0],[2,6,45],[2,7,46],[2,8,45],[3,1,1],[4,9,2],[5,5,36],[5,12,37],[6,6,18],[8,15,5],[9,13,42],[9,14,6],[9,15,42],[10,3,7],[12,25,10]],
+  2009:[[1,1,0],[1,25,45],[1,26,46],[1,27,45],[3,1,1],[5,2,37],[5,5,36],[6,6,18],[8,15,5],[10,2,42],[10,3,7],[10,3,6],[10,4,42],[12,25,10]],
+  2010:[[1,1,0],[2,13,45],[2,14,46],[2,15,45],[3,1,1],[5,5,36],[5,21,37],[6,2,17],[6,6,18],[8,15,5],[9,21,42],[9,22,6],[9,23,42],[10,3,7],[12,25,10]],
+  2011:[[1,1,0],[2,2,45],[2,3,46],[2,4,45],[3,1,1],[5,5,36],[5,10,37],[6,6,18],[8,15,5],[9,11,42],[9,12,6],[9,13,42],[10,3,7],[12,25,10]],
+  2012:[[1,1,0],[1,22,45],[1,23,46],[1,24,45],[3,1,1],[4,11,2],[5,5,36],[5,28,37],[6,6,18],[8,15,5],[9,29,42],[9,30,6],[10,1,42],[10,3,7],[12,19,4],[12,25,10]],
+  2013:[[1,1,0],[2,9,45],[2,10,46],[2,11,45],[3,1,1],[5,5,36],[5,17,37],[6,6,18],[8,15,5],[9,18,42],[9,19,6],[9,20,42],[10,3,7],[10,9,8],[12,25,10]],
+  2014:[[1,1,0],[1,30,45],[1,31,46],[2,1,45],[3,1,1],[5,5,36],[5,6,37],[6,4,17],[6,6,18],[8,15,5],[9,7,42],[9,8,6],[9,9,42],[9,10,49],[10,3,7],[10,9,8],[12,25,10]],
+  2015:[[1,1,0],[2,18,45],[2,19,46],[2,20,45],[3,1,1],[5,5,36],[5,25,37],[6,6,18],[8,14,30],[8,15,5],[9,26,42],[9,27,6],[9,28,42],[9,29,49],[10,3,7],[10,9,8],[12,25,10]],
+  2016:[[1,1,0],[2,7,45],[2,8,46],[2,9,45],[2,10,50],[3,1,1],[4,13,2],[5,5,36],[5,6,30],[5,14,37],[6,6,18],[8,15,5],[9,14,42],[9,15,6],[9,16,42],[10,3,7],[10,9,8],[12,25,10]],
+  2017:[[1,1,0],[1,27,45],[1,28,46],[1,29,45],[1,30,50],[3,1,1],[5,3,51],[5,5,36],[5,9,4],[6,6,18],[8,15,5],[10,2,30],[10,3,7],[10,3,42],[10,4,6],[10,5,42],[10,6,49],[10,9,8],[12,25,10]],
+  2018:[[1,1,0],[2,15,45],[2,16,46],[2,17,45],[3,1,1],[5,5,36],[5,7,52],[5,22,51],[6,6,18],[6,13,17],[8,15,5],[9,23,42],[9,24,6],[9,25,42],[9,26,49],[10,3,7],[10,9,8],[12,25,10]],
+  2019:[[1,1,0],[2,4,45],[2,5,46],[2,6,45],[3,1,1],[5,5,36],[5,6,52],[5,12,51],[6,6,18],[8,15,5],[9,12,42],[9,13,6],[9,14,42],[10,3,7],[10,9,8],[12,25,10]],
+  2020:[[1,1,0],[1,24,45],[1,25,46],[1,26,45],[1,27,50],[3,1,1],[4,15,2],[4,30,51],[5,5,36],[6,6,18],[8,15,5],[8,17,30],[9,30,42],[10,1,6],[10,2,42],[10,3,7],[10,9,8],[12,25,10]],
+  2021:[[1,1,0],[2,11,45],[2,12,46],[2,13,45],[3,1,1],[5,5,36],[5,19,51],[6,6,18],[8,15,5],[8,16,53],[9,20,42],[9,21,6],[9,22,42],[10,3,7],[10,4,54],[10,9,8],[10,11,24],[12,25,10]],
+  2022:[[1,1,0],[1,31,45],[2,1,46],[2,2,45],[3,1,1],[3,9,4],[5,5,36],[5,8,51],[6,1,17],[6,6,18],[8,15,5],[9,9,42],[9,10,6],[9,11,42],[9,12,49],[10,3,7],[10,9,8],[10,10,24],[12,25,10]],
+  2023:[[1,1,0],[1,21,45],[1,22,46],[1,23,45],[1,24,50],[3,1,1],[5,5,36],[5,27,51],[5,29,55],[6,6,18],[8,15,5],[9,28,42],[9,29,6],[9,30,42],[10,2,30],[10,3,7],[10,9,8],[12,25,10]],
+  2024:[[1,1,0],[2,9,45],[2,10,46],[2,11,45],[2,12,50],[3,1,1],[4,10,2],[5,5,36],[5,6,52],[5,15,51],[6,6,18],[8,15,5],[9,16,42],[9,17,6],[9,18,42],[10,1,29],[10,3,7],[10,9,8],[12,25,10]],
+  2025:[[1,1,0],[1,27,30],[1,28,45],[1,29,46],[1,30,45],[3,1,1],[3,3,56],[5,5,51],[5,5,36],[5,6,55],[5,6,52],[6,3,4],[6,6,18],[8,15,5],[10,3,7],[10,5,42],[10,6,6],[10,7,42],[10,8,49],[10,9,8],[12,25,10]],
+  2026:[[1,1,0],[2,16,45],[2,17,46],[2,18,45],[3,1,1],[3,2,56],[5,1,57],[5,5,36],[5,24,51],[5,25,55],[6,3,17],[6,6,18],[7,17,3],[8,15,5],[8,17,53],[9,24,42],[9,25,6],[9,26,42],[10,3,7],[10,5,54],[10,9,8],[12,25,10]],
+  2027:[[1,1,0],[2,6,45],[2,7,46],[2,8,45],[2,9,50],[3,1,1],[5,1,57],[5,3,58],[5,5,36],[5,13,51],[6,6,18],[7,17,3],[7,19,22],[8,15,5],[8,16,53],[9,14,42],[9,15,6],[9,16,42],[10,3,7],[10,4,54],[10,9,8],[10,11,24],[12,25,10],[12,27,25]],
+  2028:[[1,1,0],[1,26,45],[1,27,46],[1,28,45],[3,1,1],[4,12,2],[5,1,57],[5,2,51],[5,5,36],[6,6,18],[7,17,3],[8,15,5],[10,2,42],[10,3,7],[10,3,6],[10,4,42],[10,5,49],[10,9,8],[12,25,10]],
+  2029:[[1,1,0],[2,12,45],[2,13,46],[2,14,45],[3,1,1],[5,1,57],[5,5,36],[5,7,52],[5,20,51],[5,21,55],[6,6,18],[7,17,3],[8,15,5],[9,21,42],[9,22,6],[9,23,42],[9,24,49],[10,3,7],[10,9,8],[12,25,10]],
+  2030:[[1,1,0],[2,2,45],[2,3,46],[2,4,45],[2,5,50],[3,1,1],[3,27,4],[5,1,57],[5,5,36],[5,6,52],[5,9,51],[6,6,18],[6,12,17],[7,17,3],[8,15,5],[9,11,42],[9,12,6],[9,13,42],[10,3,7],[10,9,8],[12,25,10]],
+  2031:[[1,1,0],[1,22,45],[1,23,46],[1,24,45],[3,1,1],[3,3,56],[5,1,57],[5,5,36],[5,28,51],[6,6,18],[7,17,3],[8,15,5],[9,30,42],[10,1,6],[10,2,42],[10,3,7],[10,9,8],[12,25,10]],
+  2032:[[1,1,0],[2,10,45],[2,11,46],[2,12,45],[3,1,1],[4,14,2],[5,1,57],[5,3,58],[5,5,36],[5,16,51],[5,17,55],[6,6,18],[7,17,3],[7,19,22],[8,15,5],[8,16,53],[9,18,42],[9,19,6],[9,20,42],[9,21,49],[10,3,7],[10,4,54],[10,9,8],[10,11,24],[12,25,10],[12,27,25]],
+  2033:[[1,1,0],[1,30,45],[1,31,46],[2,1,45],[2,2,50],[3,1,1],[5,1,57],[5,2,58],[5,5,36],[5,6,51],[6,6,18],[7,17,3],[7,18,22],[8,15,5],[9,7,42],[9,8,6],[9,9,42],[10,3,7],[10,9,8],[10,10,24],[12,25,10],[12,26,25]],
+  2034:[[1,1,0],[2,18,45],[2,19,46],[2,20,45],[2,21,50],[3,1,1],[5,1,57],[5,5,36],[5,25,51],[5,31,17],[6,6,18],[7,17,3],[8,15,5],[9,26,42],[9,27,6],[9,28,42],[10,3,7],[10,9,8],[12,25,10]],
+  2035:[[1,1,0],[2,7,45],[2,8,46],[2,9,45],[3,1,1],[3,28,4],[5,1,57],[5,5,36],[5,7,52],[5,15,51],[6,6,18],[7,17,3],[8,15,5],[9,15,42],[9,16,6],[9,17,42],[9,18,49],[10,3,7],[10,9,8],[12,25,10]],
+  2036:[[1,1,0],[1,27,45],[1,28,46],[1,29,45],[1,30,50],[3,1,1],[3,3,56],[4,9,2],[5,1,57],[5,3,51],[5,5,36],[5,6,55],[6,6,18],[7,17,3],[8,15,5],[10,3,7],[10,3,42],[10,4,6],[10,5,42],[10,6,49],[10,7,49],[10,9,8],[12,25,10]],
+  2037:[[1,1,0],[2,14,45],[2,15,46],[2,16,45],[2,17,50],[3,1,1],[3,2,56],[5,1,57],[5,5,36],[5,22,51],[6,6,18],[7,17,3],[8,15,5],[8,17,53],[9,23,42],[9,24,6],[9,25,42],[10,3,7],[10,5,54],[10,9,8],[12,25,10]],
+  2038:[[1,1,0],[2,3,45],[2,4,46],[2,5,45],[3,1,1],[5,1,57],[5,3,58],[5,5,36],[5,11,51],[6,2,17],[6,6,18],[7,17,3],[7,19,22],[8,15,5],[8,16,53],[9,12,42],[9,13,6],[9,14,42],[9,15,49],[10,3,7],[10,4,54],[10,9,8],[10,11,24],[12,25,10],[12,27,25]],
+  2039:[[1,1,0],[1,23,45],[1,24,46],[1,25,45],[1,26,50],[3,1,1],[4,30,51],[5,1,57],[5,2,55],[5,3,58],[5,5,36],[6,6,18],[7,17,3],[7,18,22],[8,15,5],[10,1,42],[10,2,6],[10,3,7],[10,3,42],[10,4,49],[10,5,49],[10,9,8],[10,10,24],[12,25,10],[12,26,25]],
+  2040:[[1,1,0],[2,11,45],[2,12,46],[2,13,45],[2,14,50],[3,1,1],[3,28,4],[4,11,2],[5,1,57],[5,5,36],[5,7,52],[5,18,51],[6,6,18],[7,17,3],[8,15,5],[9,20,42],[9,21,6],[9,22,42],[10,3,7],[10,9,8],[12,25,10]],
+  2041:[[1,1,0],[1,31,45],[2,1,46],[2,2,45],[3,1,1],[5,1,57],[5,5,36],[5,6,52],[5,7,51],[6,6,18],[7,17,3],[8,15,5],[9,9,42],[9,10,6],[9,11,42],[10,3,7],[10,9,8],[12,25,10]],
+  2042:[[1,1,0],[1,21,45],[1,22,46],[1,23,45],[3,1,1],[3,3,56],[5,1,57],[5,5,36],[5,26,51],[6,4,17],[6,6,18],[7,17,3],[8,15,5],[9,27,42],[9,28,6],[9,29,42],[9,30,49],[10,3,7],[10,9,8],[12,25,10]],
+  2043:[[1,1,0],[2,9,45],[2,10,46],[2,11,45],[3,1,1],[3,2,56],[5,1,57],[5,5,36],[5,16,51],[5,18,55],[6,6,18],[7,17,3],[8,15,5],[8,17,53],[9,16,42],[9,17,6],[9,18,42],[10,3,7],[10,5,54],[10,9,8],[12,25,10]],
+  2044:[[1,1,0],[1,29,45],[1,30,46],[1,31,45],[2,1,50],[3,1,1],[4,13,2],[5,1,57],[5,2,58],[5,5,51],[5,5,36],[5,6,55],[5,6,52],[6,6,18],[7,17,3],[7,18,22],[8,15,5],[10,3,7],[10,4,42],[10,5,6],[10,6,42],[10,9,8],[10,10,24],[12,25,10],[12,26,25]],
+  2045:[[1,1,0],[2,16,45],[2,17,46],[2,18,45],[3,1,1],[3,29,4],[5,1,57],[5,5,36],[5,24,51],[6,6,18],[7,17,3],[8,15,5],[9,24,42],[9,25,6],[9,26,42],[9,27,49],[10,3,7],[10,9,8],[12,25,10]],
+  2046:[[1,1,0],[2,5,45],[2,6,46],[2,7,45],[3,1,1],[5,1,57],[5,5,36],[5,7,52],[5,13,51],[5,14,55],[6,6,18],[6,13,17],[7,17,3],[8,15,5],[9,14,42],[9,15,6],[9,16,42],[9,17,49],[10,3,7],[10,9,8],[12,25,10]],
+  2047:[[1,1,0],[1,25,45],[1,26,46],[1,27,45],[1,28,50],[3,1,1],[5,1,57],[5,2,51],[5,5,36],[5,6,52],[6,6,18],[7,17,3],[8,15,5],[10,3,7],[10,3,42],[10,4,6],[10,5,42],[10,7,49],[10,9,8],[12,25,10]],
+  2048:[[1,1,0],[2,13,45],[2,14,46],[2,15,45],[3,1,1],[3,2,56],[4,15,2],[5,1,57],[5,5,36],[5,20,51],[6,6,18],[7,17,3],[8,15,5],[8,17,53],[9,21,42],[9,22,6],[9,23,42],[10,3,7],[10,5,54],[10,9,8],[12,25,10]],
+  2049:[[1,1,0],[2,1,45],[2,2,46],[2,3,45],[3,1,1],[5,1,57],[5,3,58],[5,5,36],[5,9,51],[5,10,55],[6,6,18],[7,17,3],[7,19,22],[8,15,5],[8,16,53],[9,10,42],[9,11,6],[9,12,42],[9,13,49],[10,3,7],[10,4,54],[10,9,8],[10,11,24],[12,25,10],[12,27,25]],
+  2050:[[1,1,0],[1,22,45],[1,23,46],[1,24,45],[1,25,50],[3,1,1],[3,30,4],[5,1,57],[5,2,58],[5,5,36],[5,28,51],[5,30,55],[6,1,17],[6,6,18],[7,17,3],[7,18,22],[8,15,5],[9,29,42],[9,30,6],[10,1,42],[10,3,7],[10,9,8],[10,10,24],[12,25,10],[12,26,25]],
+};
+
+
+/* core.js — 음력 달력 계산 엔진 (DOM 없음) */
+var LC = (function () {
+  "use strict";
+
+  var MS = 86400000;
+  var EPOCH = Date.UTC(1900, 0, 1);
+  var SYNODIC = 29.530588853;
+  var DAY_GANJI_OFFSET = 10; // (epochDay + 10) % 60 = 60갑자 index
+
+  var STEMS = "갑을병정무기경신임계".split("");
+  var BRANCHES = "자축인묘진사오미신유술해".split("");
+  var STEM_HANJA = "甲乙丙丁戊己庚辛壬癸".split("");
+  var BRANCH_HANJA = "子丑寅卯辰巳午未申酉戌亥".split("");
+  var STEM_HAN = ["갑", "을", "병", "정", "무", "기", "경", "신", "임", "계"];
+  var ZODIAC = ["쥐", "소", "호랑이", "토끼", "용", "뱀", "말", "양", "원숭이", "닭", "개", "돼지"];
+  var ZODIAC_HAN = ["자", "축", "인", "묘", "진", "사", "오", "미", "신", "유", "술", "해"];
+  var WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+  var MONTH_NAMES = ["정월", "이월", "삼월", "사월", "오월", "유월", "칠월", "팔월", "구월", "시월", "동짓달", "섣달"];
+
+  function toDays(y, m, d) { return Math.round((Date.UTC(y, m - 1, d) - EPOCH) / MS); }
+  function fromDays(n) {
+    var t = new Date(EPOCH + n * MS);
+    return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() };
+  }
+  function weekday(days) { return ((days % 7) + 7 + 1) % 7; } // 1900-01-01 = 월요일(1), 0=일
+  function daysInMonth(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
+
+  // ---------- 음력 테이블 ----------
+  var YEARS = null, MIN_DAY, MAX_DAY = toDays(2050, 12, 31);
+  function buildYears() {
+    if (YEARS) return YEARS;
+    YEARS = [];
+    for (var i = 0; i < LUNAR.length; i++) {
+      var r = LUNAR[i], n = r[3], leap = r[1], starts = [], keys = [], lens = [];
+      var cur = r[0];
+      for (var p = 0; p < n; p++) {
+        var m, lp = 0;
+        if (leap === 0) { m = p + 1; }
+        else if (p < leap) { m = p + 1; }
+        else if (p === leap) { m = leap; lp = 1; }
+        else { m = p; }
+        var len = (r[2] >> p) & 1 ? 30 : 29;
+        starts.push(cur); keys.push([m, lp]); lens.push(len);
+        cur += len;
+      }
+      YEARS.push({ y: LUNAR_Y0 + i, ny: r[0], leap: leap, starts: starts, keys: keys, lens: lens });
+    }
+    MIN_DAY = YEARS[0].ny;
+    return YEARS;
+  }
+  function yearIndexOf(ly) {
+    buildYears();
+    var i = ly - LUNAR_Y0;
+    return i >= 0 && i < YEARS.length ? i : -1;
+  }
+
+  function solarToLunar(y, m, d) {
+    buildYears();
+    var days = toDays(y, m, d);
+    if (days < MIN_DAY || days > MAX_DAY) return null;
+    var lo = 0, hi = YEARS.length - 1, yi = 0;
+    while (lo <= hi) {
+      var mid = (lo + hi) >> 1;
+      if (YEARS[mid].ny <= days) { yi = mid; lo = mid + 1; } else { hi = mid - 1; }
+    }
+    var rec = YEARS[yi], s = rec.starts, p = 0;
+    lo = 0; hi = s.length - 1;
+    while (lo <= hi) {
+      var md = (lo + hi) >> 1;
+      if (s[md] <= days) { p = md; lo = md + 1; } else { hi = md - 1; }
+    }
+    return {
+      ly: rec.y, lm: rec.keys[p][0], ld: days - s[p] + 1, leap: rec.keys[p][1] === 1,
+      monthLen: rec.lens[p], days: days, yi: yi, pos: p
+    };
+  }
+
+  function lunarToSolar(ly, lm, ld, leap) {
+    buildYears();
+    var yi = yearIndexOf(ly);
+    if (yi < 0) return null;
+    var rec = YEARS[yi];
+    for (var p = 0; p < rec.keys.length; p++) {
+      if (rec.keys[p][0] === lm && (rec.keys[p][1] === 1) === !!leap) {
+        if (ld < 1 || ld > rec.lens[p]) return null;
+        var days = rec.starts[p] + ld - 1;
+        if (days > MAX_DAY || days < MIN_DAY) return null;
+        var s = fromDays(days);
+        s.days = days;
+        return s;
+      }
+    }
+    return null;
+  }
+
+  function leapMonthOf(ly) {
+    var yi = yearIndexOf(ly);
+    return yi < 0 ? 0 : YEARS[yi].leap;
+  }
+  function monthLength(ly, lm, leap) {
+    var yi = yearIndexOf(ly);
+    if (yi < 0) return 0;
+    var rec = YEARS[yi];
+    for (var p = 0; p < rec.keys.length; p++) {
+      if (rec.keys[p][0] === lm && (rec.keys[p][1] === 1) === !!leap) return rec.lens[p];
+    }
+    return 0;
+  }
+
+  // ---------- 간지 ----------
+  function ganjiName(idx) { return STEMS[idx % 10] + BRANCHES[idx % 12]; }
+  function yearGanji(ly) { return ((ly - 4) % 60 + 60) % 60; }
+  function monthGanjiStr(ly, lm) {
+    var mc = lm + 12 * (ly - 1000);
+    var s = ((mc + 3) % 10 + 10) % 10, b = ((mc + 1) % 12 + 12) % 12;
+    return STEMS[s] + BRANCHES[b];
+  }
+  function dayGanjiIndex(days) { return ((days + DAY_GANJI_OFFSET) % 60 + 60) % 60; }
+  function dayGanjiStr(days) { return ganjiName(dayGanjiIndex(days)); }
+  function jijiName(ly) { return ZODIAC[((ly - 4) % 12 + 12) % 12]; }
+
+  // ---------- 24절기 ----------
+  var _termBytes = null;
+  function termBytes() {
+    if (_termBytes) return _termBytes;
+    var bin = atob(TERM_DATA), n = bin.length, arr = new Uint8Array(n);
+    for (var i = 0; i < n; i++) arr[i] = bin.charCodeAt(i);
+    _termBytes = arr;
+    return arr;
+  }
+  function termAt(y, idx) {
+    if (y < TERM_Y0 || y > TERM_Y0 + 150) return null;
+    var off = ((y - TERM_Y0) * 24 + idx) * 3, b = termBytes();
+    if (off + 2 >= b.length) return null;
+    return { idx: idx, name: TERM_NAMES[idx], month: TERM_MONTH[idx], day: b[off], hour: b[off + 1], min: b[off + 2] };
+  }
+  function termsOnDate(y, m, d) {
+    var out = [];
+    for (var i = 0; i < 24; i++) {
+      var t = termAt(y, i);
+      if (t && t.month === m && t.day === d) out.push(t);
+    }
+    return out;
+  }
+  function nextTermAfter(days) {
+    for (var k = 1; k <= 60; k++) {
+      var q = fromDays(days + k), ts = termsOnDate(q.y, q.m, q.d);
+      if (ts.length) return { term: ts[0], year: q.y, days: days + k, inDays: k };
+    }
+    return null;
+  }
+
+  // 절기 기준 세차(年柱)·월건(月柱)
+  var JEOL_IDX = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]; // 소한·입춘·경칩…대설
+  function sajuOf(days) {
+    var s = fromDays(days), y = s.y;
+    var latest = null, latestIdx = -1;
+    [y - 1, y].forEach(function (yy) {
+      for (var k = 0; k < JEOL_IDX.length; k++) {
+        var j = JEOL_IDX[k], t = termAt(yy, j);
+        if (!t) continue;
+        var dd = toDays(yy, t.month, t.day);
+        if (dd <= days && (latest === null || dd > latest)) { latest = dd; latestIdx = j; }
+      }
+    });
+    var ip = termAt(y, 2);
+    var ipDay = ip ? toDays(y, ip.month, ip.day) : toDays(y, 2, 4);
+    var sajuYear = days >= ipDay ? y : y - 1;
+    var branch = latestIdx < 0 ? 0 : ((latestIdx / 2) + 1) % 12;
+    var ys = ((sajuYear - 4) % 10 + 10) % 10;
+    var stemYin = ((ys % 5) * 2 + 2) % 10;               // 오호둔: 갑기→병인, 을경→무인 …
+    var stem = ((stemYin + ((branch - 2 + 12) % 12)) % 10 + 10) % 10;
+    var yi = ((sajuYear - 4) % 60 + 60) % 60;
+    return {
+      year: sajuYear, yearIdx: yi, yearGz: ganjiName(yi),
+      monthGz: STEMS[stem] + BRANCHES[branch],
+      monthHanja: STEM_HANJA[stem] + BRANCH_HANJA[branch],
+      yearHanja: STEM_HANJA[yi % 10] + BRANCH_HANJA[yi % 12],
+      jiji: ZODIAC[((sajuYear - 4) % 12 + 12) % 12],
+      jijiHan: BRANCH_HANJA[((sajuYear - 4) % 12 + 12) % 12],
+      monthStem: stem, monthBranch: branch
+    };
+  }
+
+  // ---------- 공휴일 ----------
+  var _holi = null;
+  function holiMap() {
+    if (_holi) return _holi;
+    _holi = {};
+    for (var y in HOLIDAYS) {
+      var rows = HOLIDAYS[y];
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i], key = (+y) * 10000 + r[0] * 100 + r[1];
+        var info = HOLI_NAMES[r[2]];
+        (_holi[key] = _holi[key] || []).push({ name: info[1], sub: info[0] === 1 });
+      }
+    }
+    return _holi;
+  }
+  function holidaysOf(y, m, d) {
+    var v = holiMap()[y * 10000 + m * 100 + d];
+    return v ? v.slice() : [];
+  }
+
+  // ---------- 명절 ----------
+  var LUNAR_FEST = {
+    "1-1": "설날", "1-15": "정월대보름", "2-1": "중화절", "3-3": "삼짇날", "4-8": "부처님오신날",
+    "5-5": "단오", "6-15": "유두", "7-7": "칠석", "7-15": "백중", "8-15": "추석", "9-9": "중양절"
+  };
+  function lunarFestivalOf(lm, ld, leap) {
+    if (leap) return "";
+    return LUNAR_FEST[lm + "-" + ld] || "";
+  }
+
+  // 삼복: 초복=하지 뒤 3번째 경일, 중복=4번째, 말복=입추 뒤 1번째 경일
+  var _sambok = {};
+  function sambok(y) {
+    if (_sambok[y]) return _sambok[y];
+    var haji = termAt(y, 11), ipchu = termAt(y, 14);
+    if (!haji || !ipchu) return null;
+    function nthGyeong(fromDaysN, nth) {
+      var cnt = 0;
+      for (var k = 1; k < 60; k++) {
+        if (dayGanjiIndex(fromDaysN + k) % 10 === 6) { cnt++; if (cnt === nth) return fromDaysN + k; }
+      }
+      return null;
+    }
+    var hajiD = toDays(y, haji.month, haji.day), ipchuD = toDays(y, ipchu.month, ipchu.day);
+    var res = { "초복": nthGyeong(hajiD, 3), "중복": nthGyeong(hajiD, 4), "말복": nthGyeong(ipchuD, 1) };
+    _sambok[y] = res;
+    return res;
+  }
+
+  // ---------- 달 모양 ----------
+  function moonInfo(lm, ld) {
+    var age = (ld - 1) + 0.5;               // 정오 기준 월령
+    var theta = 360 * age / SYNODIC;        // 0=삭, 180=망
+    var illum = (1 - Math.cos(theta * Math.PI / 180)) / 2;
+    var waxing = theta < 180;
+    var name;
+    if (ld <= 2) name = "삭";
+    else if (ld <= 6) name = "초승달";
+    else if (ld <= 9) name = "상현달";
+    else if (ld <= 13) name = "차오르는 달";
+    else if (ld <= 16) name = "보름달";
+    else if (ld <= 21) name = "기우는 달";
+    else if (ld <= 23) name = "하현달";
+    else if (ld <= 28) name = "그믐달";
+    else name = "삭";
+    return { age: age, illum: illum, waxing: waxing, name: name, theta: theta };
+  }
+
+  // ---------- 표시용 ----------
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function fmtDate(y, m, d) { return y + "년 " + m + "월 " + d + "일"; }
+  function fmtLunar(l) {
+    return (l.leap ? "윤" : "") + l.lm + "월 " + l.ld + "일";
+  }
+
+  return {
+    toDays: toDays, fromDays: fromDays, weekday: weekday, daysInMonth: daysInMonth,
+    solarToLunar: solarToLunar, lunarToSolar: lunarToSolar,
+    leapMonthOf: leapMonthOf, monthLength: monthLength,
+    yearGanji: yearGanji, monthGanjiStr: monthGanjiStr, dayGanjiIndex: dayGanjiIndex,
+    dayGanjiStr: dayGanjiStr, ganjiName: ganjiName, jijiName: jijiName,
+    termAt: termAt, termsOnDate: termsOnDate, nextTermAfter: nextTermAfter,
+    holidaysOf: holidaysOf, lunarFestivalOf: lunarFestivalOf, sambok: sambok, sajuOf: sajuOf,
+    moonInfo: moonInfo, pad2: pad2, fmtDate: fmtDate, fmtLunar: fmtLunar,
+    STEMS: STEMS, BRANCHES: BRANCHES, STEM_HANJA: STEM_HANJA, BRANCH_HANJA: BRANCH_HANJA,
+    ZODIAC: ZODIAC, ZODIAC_HAN: ZODIAC_HAN, WEEKDAYS: WEEKDAYS, MONTH_NAMES: MONTH_NAMES,
+    MIN_DAY: function () { buildYears(); return MIN_DAY; },
+    MAX_DAY: MAX_DAY, TERM_NAMES: TERM_NAMES, TERM_HANJA: TERM_HANJA
+  };
+})();
+
+if (typeof module !== "undefined" && module.exports) module.exports = LC;
+
+
+/* ui.js — 화면 렌더링 */
+(function () {
+  "use strict";
+
+  var $ = function (sel, root) { return (root || document).querySelector(sel); };
+  var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+
+  var now = new Date();
+  var TODAY = { y: now.getFullYear(), m: now.getMonth() + 1, d: now.getDate() };
+  var MIN_Y = 1900, MAX_Y = 2050;
+  var todayDays = LC.toDays(TODAY.y, TODAY.m, TODAY.d);
+  var todayLunar = LC.solarToLunar(TODAY.y, TODAY.m, TODAY.d);
+
+  var state = {
+    view: "cal",
+    y: TODAY.y,
+    m: TODAY.m,
+    sel: todayDays,
+    convMode: "s2l",
+    sY: TODAY.y, sM: TODAY.m, sD: TODAY.d,
+    lY: todayLunar ? todayLunar.ly : TODAY.y,
+    lM: todayLunar ? todayLunar.lm : 1,
+    lD: todayLunar ? todayLunar.ld : 1,
+    leap: todayLunar ? todayLunar.leap : false
+  };
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+  // ---------- 별 ----------
+  function makeStars() {
+    var host = $(".stars");
+    if (!host) return;
+    var area = window.innerWidth * window.innerHeight;
+    var n = Math.min(260, Math.max(110, Math.round(area / 5200)));
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < n; i++) {
+      var s = el("i", "star");
+      var size = (Math.random() * 1.3 + 0.7).toFixed(2);
+      var o = (Math.random() * 0.65 + 0.22).toFixed(2);
+      s.style.width = s.style.height = size + "px";
+      s.style.left = (Math.random() * 100).toFixed(2) + "%";
+      s.style.top = (Math.random() * 100).toFixed(2) + "%";
+      s.style.setProperty("--o", o);
+      s.style.setProperty("--dur", (Math.random() * 6 + 3.5).toFixed(2) + "s");
+      s.style.setProperty("--delay", (-Math.random() * 6).toFixed(2) + "s");
+      if (Math.random() < 0.08) s.style.boxShadow = "0 0 6px 1px rgba(255,255,255,0.55)";
+      frag.appendChild(s);
+    }
+    host.appendChild(frag);
+  }
+
+  // ---------- 달 모양 ----------
+  var moonSeq = 0;
+  function moonSvg(illum, waxing, size, withCraters) {
+    size = size || 54;
+    var uid = "m" + (++moonSeq);
+    var c = size / 2, r = c - 3;
+    var k = clamp(illum, 0, 1);
+    var svg = '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" aria-hidden="true">' +
+      '<defs><radialGradient id="g' + uid + '" cx="36%" cy="30%" r="72%">' +
+      '<stop offset="0" stop-color="#fffdf4"/><stop offset="0.55" stop-color="#ffe7b4"/><stop offset="1" stop-color="#e2b26a"/>' +
+      "</radialGradient>";
+    var shape;
+    if (k <= 0.02) {
+      shape = '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="#131a30" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>';
+    } else if (k >= 0.995) {
+      shape = '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="url(#g' + uid + ')"/>';
+    } else {
+      var rx = Math.abs(2 * k - 1) * r;
+      var sweepOuter = waxing ? 1 : 0;
+      var sweepInner = k < 0.5 ? (waxing ? 0 : 1) : (waxing ? 1 : 0);
+      var d = "M" + c + "," + (c - r) +
+        " A" + r + "," + r + " 0 0 " + sweepOuter + " " + c + "," + (c + r) +
+        " A" + rx.toFixed(2) + "," + r + " 0 0 " + sweepInner + " " + c + "," + (c - r) + " Z";
+      shape = '<path d="' + d + '" fill="url(#g' + uid + ')"/>';
+    }
+    if (withCraters && k > 0.15) {
+      svg += '<clipPath id="c' + uid + '">' + shape.replace(/^<circle[^>]*\/>/, "") + '<circle cx="' + c + '" cy="' + c + '" r="' + r + '"/>' +
+        "</clipPath>";
+    }
+    svg += "</defs>" +
+      '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="#131a30" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>' + shape;
+    if (withCraters && k > 0.15) {
+      var cr = r * 0.17;
+      svg += '<g clip-path="url(#c' + uid + ')" fill="#a98452" opacity="0.22">' +
+        '<circle cx="' + (c - r * 0.28) + '" cy="' + (c - r * 0.18) + '" r="' + cr + '"/>' +
+        '<circle cx="' + (c + r * 0.30) + '" cy="' + (c + r * 0.26) + '" r="' + (cr * 0.8) + '"/>' +
+        '<circle cx="' + (c - r * 0.10) + '" cy="' + (c + r * 0.42) + '" r="' + (cr * 0.55) + '"/>' +
+        '<circle cx="' + (c + r * 0.12) + '" cy="' + (c - r * 0.46) + '" r="' + (cr * 0.5) + '"/>' +
+        "</g>";
+    }
+    svg += "</svg>";
+    return svg;
+  }
+
+  // ---------- 셀 라벨 ----------
+  var SHORT = {
+    "정월대보름": "대보름", "부처님오신날": "부처님", "설날 연휴": "설연휴", "추석 연휴": "추석연휴",
+    "기독탄신일": "성탄절", "신정연휴": "신정", "성탄절": "성탄절", "대체공휴일": "대체", "중양절": "중양절"
+  };
+  function shortLabel(t) {
+    if (SHORT[t]) return SHORT[t];
+    return t.length > 5 ? t.slice(0, 5) : t;
+  }
+
+  function cellInfo(days) {
+    var s = LC.fromDays(days);
+    var lunar = LC.solarToLunar(s.y, s.m, s.d);
+    var info = { s: s, lunar: lunar, hol: null, sub: false, term: null, fest: "", sambok: "", hanji: false, label: "", kind: "" };
+    if (!lunar) return info;
+
+    var hol = LC.holidaysOf(s.y, s.m, s.d);
+    if (hol.length) {
+      var main = hol.filter(function (x) { return !x.sub; })[0] || hol[0];
+      info.hol = main.name;
+      info.sub = hol.every(function (x) { return x.sub; });
+    }
+    var terms = LC.termsOnDate(s.y, s.m, s.d);
+    if (terms.length) info.term = terms[0];
+    info.fest = LC.lunarFestivalOf(lunar.lm, lunar.ld, lunar.leap);
+    var sb = LC.sambok(s.y);
+    if (sb) {
+      for (var k in sb) if (sb[k] === days) info.sambok = k;
+    }
+    // 한식: 동지로부터 105일째 (동지는 해마다 12월)
+    var dongji = LC.termAt(s.y - 1, 23);
+    if (dongji && days === LC.toDays(s.y - 1, 12, dongji.day) + 104) info.hanji = true;
+
+    if (info.hol) { info.label = shortLabel(info.hol); info.kind = info.sub ? "sub" : "hol"; }
+    else if (info.sambok) { info.label = info.sambok; info.kind = "fest"; }
+    else if (info.fest) { info.label = shortLabel(info.fest); info.kind = "fest"; }
+    else if (info.hanji) { info.label = "한식"; info.kind = "fest"; }
+    else if (info.term) { info.label = info.term.name; info.kind = "term"; }
+    return info;
+  }
+
+  // ---------- 달력 ----------
+  function renderCalendar() {
+    var grid = $("#grid");
+    var firstDays = LC.toDays(state.y, state.m, 1);
+    var offset = LC.weekday(firstDays);
+    var start = firstDays - offset;
+    var frag = document.createDocumentFragment();
+    grid.setAttribute("aria-label", state.y + "년 " + state.m + "월 달력");
+
+    for (var i = 0; i < 42; i++) {
+      var days = start + i;
+      var info = cellInfo(days);
+      var inMonth = info.s.m === state.m && info.s.y === state.y;
+      var b = el("button", "cell");
+      b.type = "button";
+      b.dataset.days = days;
+      var wd = LC.weekday(days);
+      if (wd === 0) b.classList.add("sun");
+      if (wd === 6) b.classList.add("sat");
+      if (!inMonth) b.classList.add("other");
+      if (info.kind === "hol" || info.kind === "sub") b.classList.add("hol");
+      if (info.lunar && info.lunar.leap) b.classList.add("leap");
+      if (days === todayDays) b.classList.add("today");
+      if (days === state.sel) b.classList.add("sel");
+
+      var sd = el("span", "sd", String(info.s.d));
+      b.appendChild(sd);
+      if (info.lunar) {
+        var txt;
+        if (info.lunar.ld === 1) {
+          txt = (info.lunar.leap ? "윤" : "음") + info.lunar.lm + ".1";
+        } else {
+          txt = String(info.lunar.ld);
+        }
+        b.appendChild(el("span", "ld", txt));
+      }
+      if (info.label && inMonth) {
+        b.appendChild(el("span", "ev " + info.kind, info.label));
+      }
+
+      var aria = LC.fmtDate(info.s.y, info.s.m, info.s.d) + " " + LC.WEEKDAYS[wd] + "요일";
+      if (info.lunar) aria += ", 음력 " + LC.fmtLunar(info.lunar);
+      if (info.hol) aria += ", " + info.hol;
+      if (info.label && info.kind !== "hol" && info.kind !== "sub") aria += ", " + info.label;
+      b.setAttribute("aria-label", aria);
+      if (days === state.sel) b.setAttribute("aria-current", "date");
+      frag.appendChild(b);
+    }
+    grid.innerHTML = "";
+    grid.appendChild(frag);
+
+    $("#ymLabel").textContent = state.y + "년 " + state.m + "월";
+    var midSaju = LC.sajuOf(LC.toDays(state.y, state.m, 15));
+    var sub = midSaju.yearGz + "년 · " + midSaju.jiji + "의 해";
+    var leapMonths = {};
+    var dim = LC.daysInMonth(state.y, state.m);
+    for (var q = 1; q <= dim; q++) {
+      var lq = LC.solarToLunar(state.y, state.m, q);
+      if (lq && lq.leap) leapMonths[lq.lm] = 1;
+    }
+    var lk = Object.keys(leapMonths);
+    if (lk.length) sub += " · 윤" + lk[0] + "월";
+    $("#ymSub").textContent = sub;
+  }
+
+  // ---------- 상세 ----------
+  function renderDetail() {
+    var days = state.sel;
+    var s = LC.fromDays(days);
+    var lunar = LC.solarToLunar(s.y, s.m, s.d);
+    var wd = LC.weekday(days);
+    var box = $("#detail");
+
+    if (!lunar) {
+      box.innerHTML = '<div class="d-head"><div><div class="d-date">' + s.m + "월 " + s.d + "일</div>" +
+        '<div class="d-sub">음력 정보는 1900년 1월 1일 ~ 2050년 12월 31일 사이만 볼 수 있어요.</div></div></div>';
+      return;
+    }
+
+    var mi = LC.moonInfo(lunar.lm, lunar.ld);
+    var sj = LC.sajuOf(days);
+    var gz = sj.yearGz + "년 " + sj.monthGz + "월 " + LC.dayGanjiStr(days) + "일";
+    var hol = LC.holidaysOf(s.y, s.m, s.d);
+    var terms = LC.termsOnDate(s.y, s.m, s.d);
+    var fest = LC.lunarFestivalOf(lunar.lm, lunar.ld, lunar.leap);
+    var sb = LC.sambok(s.y), sbName = "";
+    if (sb) { for (var k in sb) if (sb[k] === days) sbName = k; }
+
+    var wdCls = wd === 0 ? "sun" : wd === 6 ? "sat" : "";
+    var html = "";
+    html += '<div class="d-head">';
+    html += "<div>";
+    html += '<div class="d-date">' + s.m + "월 " + s.d + "일 <span class=\"wd " + wdCls + "\">" + LC.WEEKDAYS[wd] + "요일</span></div>";
+    html += '<div class="d-sub">' + s.y + "년" +
+      (lunar.ly !== s.y ? " · 음력 " + lunar.ly + "년" : "") +
+      (days === todayDays ? " · <b>오늘</b>" : "") + "</div>";
+    html += "</div>";
+    html += '<div class="moon-wrap">' + moonSvg(mi.illum, mi.waxing, 54, true) +
+      '<span class="moon-name">' + mi.name + " " + Math.round(mi.illum * 100) + "%</span></div>";
+    html += "</div>";
+
+    html += '<div class="d-rows">';
+    var lunarTxt = (lunar.ly !== s.y ? lunar.ly + "년 " : "") + LC.fmtLunar(lunar);
+    html += row("음력", lunarTxt +
+      ' <span style="color:var(--ink-3);font-size:11px">· ' + (lunar.leap ? "윤달" : "평달") + " " + lunar.monthLen + "일까지</span>");
+    html += row("간지", gz + ' <span class="hanja">' + sj.yearHanja + "年 " +
+      sj.monthHanja + "月 " + hanjaOfDay(days) + "日" + "</span>");
+    html += row("띠", sj.jiji + "띠 <span style=\"color:var(--ink-3);font-size:11px\">(" + sj.jijiHan + ")</span>");
+
+    // 절기
+    var termLine;
+    if (terms.length) {
+      var t = terms[0];
+      termLine = '<span class="tag term">' + t.name + "</span> " + t.month + "월 " + t.day + "일 " +
+        LC.pad2(t.hour) + ":" + LC.pad2(t.min) + ' <span style="color:var(--ink-3);font-size:11px">· 이날 입기(入氣)</span>';
+    } else {
+      var nt = LC.nextTermAfter(days);
+      if (nt) {
+        termLine = '<span class="tag term">' + nt.term.name + "</span> " + LC.fromDays(nt.days).m + "월 " +
+          LC.fromDays(nt.days).d + "일 " + LC.pad2(nt.term.hour) + ":" + LC.pad2(nt.term.min) +
+          ' <span style="color:var(--ink-3);font-size:11px">· ' + nt.inDays + "일 뒤</span>";
+      } else termLine = "—";
+    }
+    html += row("절기", termLine);
+
+    // 행사
+    var tags = [];
+    hol.forEach(function (h) {
+      tags.push('<span class="tag ' + (h.sub ? "sub" : "hol") + '">' + (h.sub ? "대체공휴일" : h.name) + "</span>");
+    });
+    if (fest && !hol.some(function (h) { return h.name === fest; })) tags.push('<span class="tag fest">' + fest + "</span>");
+    if (sbName) tags.push('<span class="tag fest">' + sbName + "</span>");
+    html += row("행사", tags.length ? tags.join("") : '<span class="v dim">—</span>');
+    html += "</div>";
+    box.innerHTML = html;
+  }
+
+  function row(k, v) {
+    return '<div class="row"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>";
+  }
+  function hanjaOfMonth(ly, lm) {
+    var mc = lm + 12 * (ly - 1000);
+    var s = ((mc + 3) % 10 + 10) % 10, b = ((mc + 1) % 12 + 12) % 12;
+    return LC.STEM_HANJA[s] + LC.BRANCH_HANJA[b];
+  }
+  function hanjaOfDay(days) {
+    var i = LC.dayGanjiIndex(days);
+    return LC.STEM_HANJA[i % 10] + LC.BRANCH_HANJA[i % 12];
+  }
+
+  // ---------- 변환기 ----------
+  function buildYearSelect(sel, from, to, value, label) {
+    sel.innerHTML = "";
+    for (var y = from; y <= to; y++) {
+      var o = document.createElement("option");
+      o.value = String(y);
+      o.textContent = y + (label || "년");
+      if (y === value) o.selected = true;
+      sel.appendChild(o);
+    }
+  }
+  function buildDaySelect(sel, len, value) {
+    sel.innerHTML = "";
+    for (var d = 1; d <= len; d++) {
+      var o = document.createElement("option");
+      o.value = String(d);
+      o.textContent = d + "일";
+      if (d === value) o.selected = true;
+      sel.appendChild(o);
+    }
+  }
+
+  function renderConverter() {
+    var mode = state.convMode;
+    $("#convSeg").querySelectorAll("button").forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.mode === mode ? "true" : "false");
+    });
+    var isLunar = mode === "l2s";
+    var yearSel = $("#cYear"), monthSel = $("#cMonth"), daySel = $("#cDay");
+
+    if (!isLunar) {
+      buildYearSelect(yearSel, MIN_Y, MAX_Y, state.sY);
+      monthSel.innerHTML = "";
+      for (var m = 1; m <= 12; m++) {
+        var o = document.createElement("option");
+        o.value = String(m); o.textContent = m + "월";
+        if (m === state.sM) o.selected = true;
+        monthSel.appendChild(o);
+      }
+      buildDaySelect(daySel, LC.daysInMonth(state.sY, state.sM), Math.min(state.sD, LC.daysInMonth(state.sY, state.sM)));
+      $("#leapRow").style.display = "none";
+      $("#cYearLabel").textContent = "양력 연";
+      $("#cMonthLabel").textContent = "양력 월";
+      $("#cDayLabel").textContent = "양력 일";
+    } else {
+      buildYearSelect(yearSel, MIN_Y, MAX_Y, state.lY);
+      var leap = LC.leapMonthOf(state.lY);
+      monthSel.innerHTML = "";
+      for (var mm = 1; mm <= 12; mm++) {
+        var opt = document.createElement("option");
+        opt.value = String(mm);
+        opt.textContent = (state.leap && mm === state.lM ? "윤" : "") + mm + "월";
+        if (mm === state.lM) opt.selected = true;
+        monthSel.appendChild(opt);
+      }
+      var len = LC.monthLength(state.lY, state.lM, state.leap) || 29;
+      buildDaySelect(daySel, len, Math.min(state.lD, len));
+      var lr = $("#leapRow");
+      lr.style.display = leap ? "flex" : "none";
+      var cb = $("#leapChk");
+      cb.checked = !!state.leap;
+      cb.disabled = !leap;
+      $("#leapNote").textContent = leap
+        ? (state.leap ? state.lY + "년 윤" + leap + "월" : state.lY + "년 윤" + leap + "월이 있는 해예요")
+        : "이 해에는 윤달이 없어요";
+      $("#cYearLabel").textContent = "음력 연";
+      $("#cMonthLabel").textContent = "음력 월";
+      $("#cDayLabel").textContent = "음력 일";
+    }
+
+    // 결과
+    var res = $("#convResult");
+    var html = "";
+    if (!isLunar) {
+      var sol = { y: state.sY, m: state.sM, d: state.sD };
+      var l = LC.solarToLunar(sol.y, sol.m, sol.d);
+      if (!l) {
+        html += '<div class="r-label">결과</div><div class="r-warn">1900년 1월 1일 ~ 2050년 12월 31일 범위만 지원해요.</div>';
+      } else {
+        html += '<div class="r-label">음력으로</div>';
+        html += '<div class="r-main"><span class="small">' + l.ly + "년</span> " +
+          (l.leap ? "윤" : "") + l.lm + "월 " + l.ld + "일</div>";
+        var sjs = LC.sajuOf(LC.toDays(sol.y, sol.m, sol.d));
+        html += '<div class="r-meta">' + sjs.yearGz + "년 · " + sjs.jiji + "띠 · " +
+          (l.leap ? "윤달" : "평달") + " " + l.monthLen + "일까지</div>";
+        html += '<div class="r-meta">양력 <b>' + LC.fmtDate(sol.y, sol.m, sol.d) + " " +
+          LC.WEEKDAYS[LC.weekday(LC.toDays(sol.y, sol.m, sol.d))] + "요일</b></div>";
+        state.refLunar = { ly: l.ly, lm: l.lm, ld: l.ld, leap: l.leap };
+      }
+    } else {
+      var s2 = LC.lunarToSolar(state.lY, state.lM, state.lD, state.leap);
+      if (!s2) {
+        html += '<div class="r-label">결과</div><div class="r-warn">' + state.lY + "년에는 " +
+          (state.leap ? "윤" : "") + state.lM + "월 " + state.lD + "일이 없어요.</div>";
+      } else {
+        var wd = LC.weekday(s2.days);
+        html += '<div class="r-label">양력으로</div>';
+        html += '<div class="r-main">' + LC.fmtDate(s2.y, s2.m, s2.d) + ' <span class="small">' + LC.WEEKDAYS[wd] + "요일</span></div>";
+        var sjs2 = LC.sajuOf(s2.days);
+        html += '<div class="r-meta">' + sjs2.yearGz + "년 " + sjs2.monthGz + "월 " +
+          LC.dayGanjiStr(s2.days) + "일 · " + sjs2.jiji + "띠</div>";
+        var n = LC.toDays(s2.y, s2.m, s2.d) - todayDays;
+        html += '<div class="r-meta">' + (n === 0 ? "<b>오늘</b>" : n > 0 ? "<b>D-" + n + "</b> · " + n + "일 남음" : "<b>D+" + (-n) + "</b> · " + (-n) + "일 지남") + "</div>";
+        state.refLunar = { ly: state.lY, lm: state.lM, ld: state.lD, leap: state.leap };
+      }
+    }
+    res.innerHTML = html;
+
+    renderYearList();
+  }
+
+  function renderYearList() {
+    var host = $("#ylist");
+    var ref = state.refLunar;
+    if (!ref) { host.innerHTML = ""; return; }
+    var todayLy = todayLunar ? todayLunar.ly : TODAY.y;
+    var startYear = Math.max(ref.ly, todayLy);
+    var rows = [];
+    var y = startYear, guard = 0;
+    while (rows.length < 5 && y <= MAX_Y && guard < 200) {
+      guard++;
+      var s = LC.lunarToSolar(y, ref.lm, ref.ld, ref.leap);
+      if (s) {
+        rows.push({ y: y, s: s, wd: LC.weekday(s.days), diff: s.days - todayDays });
+      } else if (!ref.leap) {
+        rows.push({ y: y, s: null });
+      }
+      y++;
+    }
+    var html = "";
+    rows.forEach(function (r) {
+      if (!r.s) {
+        html += "<div class='yrow miss'><span class='y'>" + r.y + "년</span>" +
+          "<span class='s'>" + ref.lm + "월 " + ref.ld + "일 없음</span><span class='d'>-</span></div>";
+      } else {
+        var wdCls = r.wd === 0 ? "sun" : r.wd === 6 ? "sat" : "";
+        var right = r.diff === 0 ? "오늘" : r.diff > 0 ? "D-" + r.diff : "D+" + (-r.diff);
+        html += "<div class='yrow'><span class='y'>" + r.y + "년</span>" +
+          "<span class='s'>" + r.s.m + "월 " + r.s.d + "일" +
+          "<span class='wd " + wdCls + "'>" + LC.WEEKDAYS[r.wd] + "</span></span>" +
+          "<span class='d" + (r.diff === 0 ? " hit" : "") + "'>" + right + "</span></div>";
+      }
+    });
+    host.innerHTML = html;
+    $("#ylistTitle").textContent = "음력 " + (ref.leap ? "윤" : "") + ref.lm + "월 " + ref.ld + "일 · 앞으로 5년";
+    $("#ylistSub").textContent = ref.leap ? "윤달이 있는 해만" : (rows.length ? rows[0].y + "–" + rows[rows.length - 1].y : "");
+  }
+
+  // ---------- 이벤트 ----------
+  function setSel(days) {
+    state.sel = days;
+    var s = LC.fromDays(days);
+    if (s.m !== state.m || s.y !== state.y) { state.y = s.y; state.m = s.m; }
+    renderCalendar();
+    renderDetail();
+  }
+
+  function shiftMonth(delta) {
+    var m = state.m + delta, y = state.y;
+    if (m < 1) { m = 12; y--; }
+    if (m > 12) { m = 1; y++; }
+    if (y < MIN_Y || y > MAX_Y) return;
+    state.y = y; state.m = m;
+    renderCalendar();
+  }
+
+  $("#grid").addEventListener("click", function (e) {
+    var b = e.target.closest(".cell");
+    if (!b || !b.dataset.days) return;
+    setSel(+b.dataset.days);
+  });
+
+  $("#prev").addEventListener("click", function () { shiftMonth(-1); });
+  $("#next").addEventListener("click", function () { shiftMonth(1); });
+  $("#todayBtn").addEventListener("click", function () {
+    state.y = TODAY.y; state.m = TODAY.m; setSel(todayDays);
+  });
+
+  // 탭
+  $$(".tabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.view = b.dataset.view;
+      $$(".tabs button").forEach(function (x) { x.setAttribute("aria-selected", x === b ? "true" : "false"); });
+      $("#view-cal").hidden = state.view !== "cal";
+      $("#view-conv").hidden = state.view !== "conv";
+      if (state.view === "conv") renderConverter();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+
+  // 연·월 시트
+  var sheetYear = TODAY.y;
+  function openSheet() {
+    sheetYear = state.y;
+    renderSheet();
+    $("#sheetBack").hidden = false;
+    requestAnimationFrame(function () {
+      $("#sheetBack").classList.add("open");
+      $("#sheet").classList.add("open");
+    });
+  }
+  function closeSheet() {
+    $("#sheetBack").classList.remove("open");
+    $("#sheet").classList.remove("open");
+    setTimeout(function () { $("#sheetBack").hidden = true; }, 300);
+  }
+  function renderSheet() {
+    $("#sheetYear").textContent = sheetYear + "년";
+    var g = $("#monthGrid");
+    g.innerHTML = "";
+    for (var m = 1; m <= 12; m++) {
+      (function (mm) {
+        var b = el("button", "", mm + "월");
+        b.type = "button";
+        if (sheetYear === state.y && mm === state.m) b.setAttribute("aria-pressed", "true");
+        b.addEventListener("click", function () {
+          state.y = sheetYear; state.m = mm;
+          closeSheet();
+          renderCalendar();
+        });
+        g.appendChild(b);
+      })(m);
+    }
+  }
+  $("#ymBtn").addEventListener("click", openSheet);
+  $("#sheetBack").addEventListener("click", closeSheet);
+  $("#sheetPrevY").addEventListener("click", function () { sheetYear = clamp(sheetYear - 1, MIN_Y, MAX_Y); renderSheet(); });
+  $("#sheetNextY").addEventListener("click", function () { sheetYear = clamp(sheetYear + 1, MIN_Y, MAX_Y); renderSheet(); });
+
+  // 스와이프
+  (function () {
+    var x0 = null, y0 = null, t0 = 0;
+    var area = $("#calCard");
+    area.addEventListener("touchstart", function (e) {
+      if (e.touches.length !== 1) return;
+      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now();
+    }, { passive: true });
+    area.addEventListener("touchend", function (e) {
+      if (x0 === null) return;
+      var t = e.changedTouches[0];
+      var dx = t.clientX - x0, dy = t.clientY - y0, dt = Date.now() - t0;
+      x0 = null;
+      if (dt < 600 && Math.abs(dx) > 46 && Math.abs(dx) > Math.abs(dy) * 1.6) {
+        shiftMonth(dx < 0 ? 1 : -1);
+      }
+    }, { passive: true });
+  })();
+
+  document.addEventListener("keydown", function (e) {
+    if ($("#sheet").classList.contains("open") && e.key === "Escape") { closeSheet(); return; }
+    if (state.view !== "cal") return;
+    if (e.key === "ArrowLeft") shiftMonth(-1);
+    if (e.key === "ArrowRight") shiftMonth(1);
+  });
+
+  // 변환기 이벤트
+  $("#convSeg").addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b) return;
+    state.convMode = b.dataset.mode;
+    renderConverter();
+  });
+  $("#cYear").addEventListener("change", function () {
+    var v = +this.value;
+    if (state.convMode === "s2l") {
+      state.sY = v;
+      state.sD = Math.min(state.sD, LC.daysInMonth(state.sY, state.sM));
+    } else {
+      state.lY = v;
+      var leap = LC.leapMonthOf(state.lY);
+      if (!leap) state.leap = false;
+      else if (state.leap) state.lM = leap;
+      state.lD = Math.min(state.lD, LC.monthLength(state.lY, state.lM, state.leap) || 29);
+    }
+    renderConverter();
+  });
+  $("#cMonth").addEventListener("change", function () {
+    var v = this.value;
+    if (state.convMode === "s2l") {
+      state.sM = +v;
+      state.sD = Math.min(state.sD, LC.daysInMonth(state.sY, state.sM));
+    } else {
+      state.lM = +v;
+      if (state.leap && LC.leapMonthOf(state.lY) !== state.lM) state.leap = false;
+      state.lD = Math.min(state.lD, LC.monthLength(state.lY, state.lM, state.leap) || 29);
+    }
+    renderConverter();
+  });
+  $("#cDay").addEventListener("change", function () {
+    if (state.convMode === "s2l") state.sD = +this.value;
+    else state.lD = +this.value;
+    renderConverter();
+  });
+  $("#leapChk").addEventListener("change", function () {
+    state.leap = this.checked;
+    if (state.leap) {
+      var lm = LC.leapMonthOf(state.lY);
+      if (lm) state.lM = lm;
+    }
+    state.lD = Math.min(state.lD, LC.monthLength(state.lY, state.lM, state.leap) || 29);
+    renderConverter();
+  });
+
+  // ---------- 시작 ----------
+  makeStars();
+  (function () {
+    var host = $("#brandMark");
+    if (host) host.innerHTML = moonSvg(0.34, true, 27);
+  })();
+
+  // 헤더 오늘 표시
+  (function () {
+    var wd = LC.WEEKDAYS[LC.weekday(todayDays)];
+    $("#todayChip").innerHTML = "<b>" + LC.fmtDate(TODAY.y, TODAY.m, TODAY.d) + " " + wd + "요일</b><br>" +
+      (todayLunar ? "음력 " + LC.fmtLunar(todayLunar) : "");
+  })();
+
+  renderCalendar();
+  renderDetail();
+  renderConverter();
+})();
+
+</script>
+</body>
+</html>
